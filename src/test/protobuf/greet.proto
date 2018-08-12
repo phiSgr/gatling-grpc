@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package example;
+
+option java_package = "com.github.phisgr.example";
+option java_multiple_files = true;
+
+message HelloWorld {
+    string username = 1;
+    string name = 2;
+}
+
+message ChatMessage {
+    string username = 1;
+    string data = 2;
+}
+
+message RegisterRequest {
+    string username = 1;
+}
+
+message RegisterResponse {
+    string username = 1;
+    string token = 2;
+}
+
+service GreetService {
+    rpc Register (RegisterRequest) returns (RegisterResponse);
+    rpc Greet (HelloWorld) returns (ChatMessage);
+}
