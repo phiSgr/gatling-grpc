@@ -1,7 +1,7 @@
 name := "gatling-grpc"
 
 organization := "com.github.phisgr"
-version := "0.0.1-SNAPSHOT"
+version := "0.0.1"
 
 scalaVersion := "2.12.6"
 
@@ -33,3 +33,6 @@ enablePlugins(GatlingPlugin)
 import xerial.sbt.Sonatype._
 publishTo := SonatypeKeys.sonatypePublishTo.value
 publishMavenStyle := true
+
+licenses := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt"))
+sonatypeProjectHosting := Some(GitHubHosting("phiSgr", "gatling-grpc", "phisgr@gmail.com"))
