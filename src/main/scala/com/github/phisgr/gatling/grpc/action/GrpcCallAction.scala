@@ -37,15 +37,13 @@ case class GrpcCallAction[Service <: AbstractStub[Service], Req, Res](
       }
       resolvedPayload <- builder.payload(session)
     } yield {
-      val stub = {
-        val stub = builder.stub(session(GrpcProtocol.ChannelAttributeName).as[ManagedChannel])
-        if (resolvedHeaders.isEmpty) stub else MetadataUtils.attachHeaders(stub, {
-          val headers = new Metadata()
-          resolvedHeaders.foreach { case (key, value) => headers.put(key, value) }
-          headers
-        })
+      val rawChannel = session(GrpcProtocol.ChannelAttributeName).as[ManagedChannel]
+      val channel = if (resolvedHeaders.isEmpty) rawChannel else {
+        val headers = new Metadata()
+        resolvedHeaders.foreach { case (key, value) => headers.put(key, value) }
+        ClientInterceptors.intercept(rawChannel, MetadataUtils.newAttachHeadersInterceptor(headers))
       }
-      System.currentTimeMillis() -> builder.fun(stub)(resolvedPayload)
+      System.currentTimeMillis() -> builder.method(channel)(resolvedPayload)
     }
 
     val statsEngine = ctx.coreComponents.statsEngine

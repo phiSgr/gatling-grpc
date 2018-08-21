@@ -24,27 +24,25 @@ class GrpcExample extends Simulation {
     .exec(setUpGrpc)
     .exec(
       grpc("Register")
-        .service(GreetServiceGrpc.stub)
-        .rpc(_.register)(
-          RegisterRequest.defaultInstance.updateExpr(
-            _.username :~ $("username")
-          )
-        )
+        .rpc(GreetServiceGrpc.METHOD_REGISTER)
+        .payload(RegisterRequest.defaultInstance.updateExpr(
+          _.username :~ $("username")
+        ))
         .extract(_.token.some)(_ saveAs "token")
     )
     .exitHereIfFailed
     .repeat(1000) {
       exec(
         grpc("Success")
-          .service(GreetServiceGrpc.stub)
-          .rpc(_.greet)(helloWorld)
+          .rpc(GreetServiceGrpc.METHOD_GREET)
+          .payload(helloWorld)
           .header(TokenHeaderKey)($("token"))
           .extract(_.data.split(' ').headOption)(_ saveAs "s")
       )
         .exec(
           grpc("Cannot Build")
-            .service(GreetServiceGrpc.stub)
-            .rpc(_.greet)($("notDefined"))
+            .rpc(GreetServiceGrpc.METHOD_GREET)
+            .payload($("notDefined"))
             .check(
               // the extraction checks can be added inside .check
               // but the extraction functions need type annotation
@@ -54,14 +52,17 @@ class GrpcExample extends Simulation {
             )
         )
         .exec(
-          grpc("Cannot Build")
+          grpc("Cannot Build, with old API")
             .service(GreetServiceGrpc.stub)
-            .rpc(_.greet)($[HelloWorld]("s")) // Wrong type
+            // Session attribute "s" is a String (see line 40),
+            // but we need a HelloWorld here.
+            // Note that we do not need to supply the type parameter, it is just here for clarity
+            .rpc(_.greet)($[HelloWorld]("s"))
         )
         .exec(
           grpc("Expect UNAUTHENTICATED")
-            .service(GreetServiceGrpc.stub)
-            .rpc(_.greet)(helloWorld)
+            .rpc(GreetServiceGrpc.METHOD_GREET)
+            .payload(helloWorld)
             .check(
               statusCode is Status.Code.UNAUTHENTICATED,
               statusDescription.notExists
@@ -69,15 +70,15 @@ class GrpcExample extends Simulation {
         )
         .exec(
           grpc("Expect PERMISSION_DENIED")
-            .service(GreetServiceGrpc.stub)
-            .rpc(_.greet)(HelloWorld(username = "DoesNotExist"))
+            .rpc(GreetServiceGrpc.METHOD_GREET)
+            .payload(HelloWorld(username = "DoesNotExist"))
             .header(TokenHeaderKey)($("token"))
             .check(statusCode is Status.Code.PERMISSION_DENIED)
         )
         .exec(
           grpc("Use session")
-            .service(GreetServiceGrpc.stub)
-            .rpc(_.greet)(
+            .rpc(GreetServiceGrpc.METHOD_GREET)
+            .payload(
               HelloWorld.defaultInstance.updateExpr(
                 _.name :~ $("s"),
                 _.username :~ $("username")
@@ -88,15 +89,15 @@ class GrpcExample extends Simulation {
         )
         .exec(
           grpc("Extraction crash")
-            .service(GreetServiceGrpc.stub)
-            .rpc(_.greet)(helloWorld)
+            .rpc(GreetServiceGrpc.METHOD_GREET)
+            .payload(helloWorld)
             .header(TokenHeaderKey)($("token"))
             .exists(_.data.split(' ')(10).some) // This will crash, see below
         )
         .exec(
           grpc("Extract multiple")
-            .service(GreetServiceGrpc.stub)
-            .rpc(_.greet)(helloWorld)
+            .rpc(GreetServiceGrpc.METHOD_GREET)
+            .payload(helloWorld)
             .header(TokenHeaderKey)($("token"))
             .extractMultiple(_.data.split(' ').toSeq.some)(
               _.count is 4,

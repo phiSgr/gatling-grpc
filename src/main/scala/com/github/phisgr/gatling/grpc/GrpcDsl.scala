@@ -6,8 +6,9 @@ import io.gatling.commons.NotNothing
 import io.gatling.commons.validation.{Failure, Success}
 import io.gatling.core.session.Expression
 import io.gatling.core.session.el.ElMessages
-import io.grpc.stub.AbstractStub
-import io.grpc.{Channel, ManagedChannelBuilder}
+import io.grpc.stub.{AbstractStub, ClientCalls}
+import io.grpc.{CallOptions, Channel, ManagedChannelBuilder, MethodDescriptor}
+import scalapb.grpc.Grpc.guavaFuture2ScalaFuture
 
 import scala.concurrent.Future
 import scala.reflect.ClassTag
@@ -20,10 +21,25 @@ trait GrpcDsl {
 
   class Call private[gatling](requestName: String) {
     def service[Service <: AbstractStub[Service]](stub: Channel => Service) = new CallWithService(requestName, stub)
+
+    def rpc[Req, Res](method: MethodDescriptor[Req, Res]) = {
+      assert(method.getType == MethodDescriptor.MethodType.UNARY)
+      new CallWithMethod(requestName, method)
+    }
+  }
+
+  class CallWithMethod[Req, Res] private[gatling](requestName: String, method: MethodDescriptor[Req, Res]) {
+    val f = { channel: Channel =>
+      request: Req =>
+        guavaFuture2ScalaFuture(ClientCalls.futureUnaryCall(channel.newCall(method, CallOptions.DEFAULT), request))
+    }
+
+    def payload(req: Expression[Req]) = GrpcCallActionBuilder(requestName, f, req, headers = Nil)
   }
 
   class CallWithService[Service <: AbstractStub[Service]] private[gatling](requestName: String, stub: Channel => Service) {
-    def rpc[Req, Res](fun: Service => Req => Future[Res])(request: Expression[Req]) = GrpcCallActionBuilder(requestName, stub, fun, request, Nil)
+    def rpc[Req, Res](fun: Service => Req => Future[Res])(request: Expression[Req]) =
+      GrpcCallActionBuilder(requestName, stub andThen fun, request, headers = Nil)
   }
 
   val setUpGrpc = GrpcSetUpActionBuilder

@@ -15,7 +15,7 @@ along with the two required by Gatling.
 libraryDependencies ++= Seq(
   "io.gatling.highcharts" % "gatling-charts-highcharts" % gatlingVersion % "test",
   "io.gatling" % "gatling-test-framework" % gatlingVersion % "test",
-  "com.github.phisgr" %% "gatling-grpc" % "0.0.1" % "test"
+  "com.github.phisgr" %% "gatling-grpc" % "0.1.0" % "test"
 )
 enablePlugins(GatlingPlugin)
 ```
@@ -41,8 +41,8 @@ To make a gRPC call:
 ```scala
 exec(
   grpc("my_request")
-    .service(GreetServiceGrpc.stub)
-    .rpc(_.greet)(HelloWorld(
+    .rpc(GreetServiceGrpc.METHOD_GREET)
+    .payload(HelloWorld(
       username = "myUserName",
       name = "My name"
     ))
@@ -58,25 +58,30 @@ can be used with little knowledge in Scala
 by referring to the examples.
 
 If you want to know a bit more on what's happening,
-here is a bit more explanation on the above example:
+here is a bit more explanation.
 
-`GreetServiceGrpc.stub` is a function (think static method) that
-takes a gRPC channel and returns the GreetService.
-
-When you type that the IDE may be helpful enough to insert a pair of brackets.
-Delete them, because we are not calling the function but referencing it.
-The function will be called by the library internally.
-
-`_.greet` is another method reference,
-where the underscore is a placeholder for the GreetService.
-
-The next argument in the next pair of brackets is the payload for the RPC.
-It can be an [`Expression`](https://gatling.io/docs/2.3/session/expression_el/),
+The payload can be an [`Expression`](https://gatling.io/docs/2.3/session/expression_el/),
 or a plain value like the one above.
+This is possible because of the implicit conversion `value2Expression`.
 
-You may be wondering why the RPC method reference and the payload
-are not separated by a comma, but are put in two pairs of brackets.
+In `GrpcExample`, some arguments are not separated by a comma
+but are put in two pairs of brackets.
+An example is the header key and value `.header(TokenHeaderKey)($("token"))`
 The reason is that it helps type inference.
+The compiler does not know what type the expression is of
+(in other words, the type parameter for `$`),
+unless we tell the compiler to look at the type of the header key
+by separating the arguments into two argument lists.
+
+## Changelog
+
+#### 0.1.0
+Previously method references
+(functions that are not applied, an `_` before a method)
+were used to refer to an RPC.
+In this version, method descriptors are used,
+bringing a better looking API.
+But the old one is still kept for more flexibility.
 
 ## Development
 

@@ -16,8 +16,7 @@ import scala.util.Try
 
 case class GrpcCallActionBuilder[Service <: AbstractStub[Service], Req, Res](
   requestName: String,
-  stub: Channel => Service,
-  fun: Service => Req => Future[Res],
+  method: Channel => Req => Future[Res],
   payload: Expression[Req],
   headers: List[HeaderPair[_]] = Nil,
   checks: List[GrpcCheck[Res]] = Nil
