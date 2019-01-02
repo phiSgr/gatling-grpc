@@ -1,4 +1,4 @@
-addSbtPlugin("io.gatling" % "gatling-sbt" % "2.2.2")
+addSbtPlugin("io.gatling" % "gatling-sbt" % "3.0.0")
 addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.5.1")
 
 addSbtPlugin("org.xerial.sbt" % "sbt-sonatype" % "2.3")

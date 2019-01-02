@@ -2,9 +2,8 @@ package com.github.phisgr.gatling.grpc.check
 
 import io.gatling.commons.validation.{FailureWrapper, SuccessWrapper, Validation}
 import io.gatling.core.Predef.value2Expression
-import io.gatling.core.check.ValidatorCheckBuilder
+import io.gatling.core.check._
 import io.gatling.core.check.extractor.{Extractor, SingleArity}
-import io.gatling.core.session.ExpressionSuccessWrapper
 import io.grpc.{Status, StatusException, StatusRuntimeException}
 
 import scala.util.{Failure, Success, Try}
@@ -18,28 +17,37 @@ private[gatling] object StatusExtract {
     case Failure(_) => "Response wasn't received".failure
   }
 
-  type StatusV[T, X] = ValidatorCheckBuilder[GrpcCheck[T], Try[T], Try[T], X]
+  trait StatusExtractor[X] extends Extractor[Try[Any], X] with SingleArity
 
-  private def statusExtract[X](extractor: Extractor[Try[_], X]): StatusV[Any, X] = ValidatorCheckBuilder(
-    extender = GrpcCheck(_, GrpcCheck.Status),
-    preparer = _.success,
-    extractor = extractor.expressionSuccess
+  val StatusDescription: ValidatorCheckBuilder[StatusExtract, Try[Any], String] = ValidatorCheckBuilder(
+    extractor = new StatusExtractor[String] {
+      val name = "grpcStatusDescription"
+
+      override def apply(prepared: Try[Any]): Validation[Option[String]] =
+        extractStatus(prepared).map(s => Option(s.getDescription))
+    },
+    displayActualValue = true
   )
 
-  trait StatusExtractor[X] extends Extractor[Try[_], X] with SingleArity
+  val StatusCode: ValidatorCheckBuilder[StatusExtract, Try[Any], Status.Code] = ValidatorCheckBuilder(
+    extractor = new StatusExtractor[Status.Code] {
+      val name = "grpcStatusCode"
 
-  val StatusDescription = statusExtract(new StatusExtractor[String] {
-    val name = "grpcStatusDescription"
+      override def apply(prepared: Try[Any]): Validation[Option[Status.Code]] =
+        extractStatus(prepared).map(s => Some(s.getCode))
+    },
+    displayActualValue = true
+  )
 
-    override def apply(prepared: Try[_]) = extractStatus(prepared).map(s => Option(s.getDescription))
-  })
+  object Materializer extends CheckMaterializer[StatusExtract, GrpcCheck[Any], Try[Any], Try[Any]] {
+    override protected def preparer: Preparer[Try[Any], Try[Any]] = _.success
 
-  val StatusCode: StatusV[Any, Status.Code] = statusExtract(new StatusExtractor[Status.Code] {
-    val name = "grpcStatusCode"
+    override protected def specializer: Specializer[GrpcCheck[Any], Try[Any]] = GrpcCheck(_, GrpcCheck.Status)
+  }
 
-    override def apply(prepared: Try[_]) = extractStatus(prepared).map(s => Some(s.getCode))
-  })
-
-  val DefaultCheck = StatusCode.is(value2Expression(Status.Code.OK)).build
+  val DefaultCheck = StatusCode.is(value2Expression(Status.Code.OK)).build(Materializer)
 
 }
+
+// phantom type for implicit materializer resolution
+trait StatusExtract

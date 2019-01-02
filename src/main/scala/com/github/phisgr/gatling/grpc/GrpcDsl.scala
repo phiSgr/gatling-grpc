@@ -47,6 +47,7 @@ trait GrpcDsl {
   def $[T: ClassTag : NotNothing](name: String): Expression[T] = s => s.attributes.get(name) match {
     case Some(t: T) => Success(t)
     case None => ElMessages.undefinedSessionAttribute(name)
-    case Some(t) => Failure(s"Value $t is of type ${t.getClass}, expected ${implicitly[ClassTag[T]].runtimeClass}")
+    case Some(t) => Failure(s"Value $t is of type ${t.getClass.getName}, " +
+      s"expected ${implicitly[ClassTag[T]].runtimeClass.getName}")
   }
 }

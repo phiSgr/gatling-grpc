@@ -11,23 +11,20 @@ object GrpcProtocol {
   val ChannelAttributeName = SessionPrivateAttributes.PrivateAttributePrefix + "grpc.channel"
 
   case class GrpcComponent(channelBuilder: ManagedChannelBuilder[_]) extends ProtocolComponents {
-    override def onStart = None
+    override def onStart = identity
 
-    override def onExit = Some { s =>
+    override def onExit = { s =>
       s(ChannelAttributeName).asOption[ManagedChannel].foreach(_.shutdownNow())
     }
   }
 
-  val GrpcProtocolKey = new ProtocolKey {
-    override type Protocol = GrpcProtocol
-    override type Components = GrpcComponent
-
-    override def protocolClass = classOf[GrpcProtocol].asInstanceOf[Class[io.gatling.core.protocol.Protocol]]
+  val GrpcProtocolKey = new ProtocolKey[GrpcProtocol, GrpcComponent] {
+    override def protocolClass: Class[Protocol] = classOf[GrpcProtocol].asInstanceOf[Class[Protocol]]
 
     override def defaultProtocolValue(configuration: GatlingConfiguration) =
       GrpcProtocol(ManagedChannelBuilder.forAddress("localhost", 8080))
 
-    override def newComponents(system: ActorSystem, coreComponents: CoreComponents) = { protocol: GrpcProtocol =>
+    override def newComponents(coreComponents: CoreComponents): GrpcProtocol => GrpcComponent = { protocol =>
       GrpcComponent(protocol.channelBuilder)
     }
 

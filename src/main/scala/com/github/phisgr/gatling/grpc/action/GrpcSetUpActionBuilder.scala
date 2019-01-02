@@ -19,7 +19,7 @@ object GrpcSetUpActionBuilder extends ActionBuilder {
     val next: Action
   ) extends ChainableAction with NameGen {
 
-    override def name = genName("grpcChannelSetUp")
+    override val name = genName("grpcChannelSetUp")
 
     override def execute(session: Session): Unit = {
       session(GrpcProtocol.ChannelAttributeName).asOption[ManagedChannel].foreach(_.shutdownNow())

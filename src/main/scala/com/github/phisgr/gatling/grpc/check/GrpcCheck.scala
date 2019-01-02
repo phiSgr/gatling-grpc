@@ -3,12 +3,13 @@ package com.github.phisgr.gatling.grpc.check
 import com.github.phisgr.gatling.grpc.check.GrpcCheck.{Scope, Status}
 import io.gatling.core.check.Check
 import io.gatling.core.session.Session
+import java.util.{Map => JMap}
 
-import scala.collection.mutable
+import scala.annotation.unchecked.uncheckedVariance
 import scala.util.Try
 
-case class GrpcCheck[T](wrapped: Check[Try[T]], scope: Scope) extends Check[Try[T]] {
-  override def check(response: Try[T], session: Session)(implicit cache: mutable.Map[Any, Any]) =
+case class GrpcCheck[-T](wrapped: Check[Try[T]@uncheckedVariance], scope: Scope) extends Check[Try[T]@uncheckedVariance] {
+  override def check(response: Try[T], session: Session)(implicit cache: JMap[Any, Any]) =
     wrapped.check(response, session)(cache)
 
   def checksStatus = scope == Status

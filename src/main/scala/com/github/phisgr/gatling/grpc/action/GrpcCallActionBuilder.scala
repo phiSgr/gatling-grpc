@@ -14,7 +14,7 @@ import scala.collection.breakOut
 import scala.concurrent.Future
 import scala.util.Try
 
-case class GrpcCallActionBuilder[Service <: AbstractStub[Service], Req, Res](
+case class GrpcCallActionBuilder[Req, Res](
   requestName: String,
   method: Channel => Req => Future[Res],
   payload: Expression[Req],
@@ -29,17 +29,15 @@ case class GrpcCallActionBuilder[Service <: AbstractStub[Service], Req, Res](
 
   private def mapToList[T, U](s: Seq[T])(f: T => U) = s.map[U, List[U]](f)(breakOut)
 
-  // If this method takes GrpcCheck[Res], type inference may not work
-  // because of the implicit conversions like `checkBuilder2Check` needed
-  def check(checks: CheckBuilder[GrpcCheck[Res], Try[Res], _, _]*) = copy(
-    checks = this.checks ::: mapToList(checks)(_.build)
+  def check(checks: GrpcCheck[Res]*) = copy(
+    checks = this.checks ::: checks.toList
   )
 
   // In fact they can be added to checks using .check
   // but the type Res cannot be inferred there
   def extract[X](
     f: Res => Option[X])(
-    ts: (ValidatorCheckBuilder[GrpcCheck[Res], Try[Res], Res, X] => GrpcCheck[Res])*
+    ts: (ValidatorCheckBuilder[ResponseExtract, Res, X] => GrpcCheck[Res])*
   ) = {
     val e = ResponseExtract.extract(f)
     copy(
@@ -47,11 +45,11 @@ case class GrpcCallActionBuilder[Service <: AbstractStub[Service], Req, Res](
     )
   }
 
-  def exists[X](f: Res => Option[X]) = extract(f)(_.exists.build)
+  def exists[X](f: Res => Option[X]) = extract(f)(_.exists.build(ResponseExtract.materializer))
 
   def extractMultiple[X](
     f: Res => Option[Seq[X]])(
-    ts: (MultipleFindCheckBuilder[GrpcCheck[Res], Try[Res], Res, X] => GrpcCheck[Res])*
+    ts: (MultipleFindCheckBuilder[ResponseExtract, Res, X] => GrpcCheck[Res])*
   ) = {
     val e = ResponseExtract.extractMultiple[Res, X](f)
     copy(

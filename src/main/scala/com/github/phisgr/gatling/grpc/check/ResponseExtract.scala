@@ -1,17 +1,13 @@
 package com.github.phisgr.gatling.grpc.check
 
-import io.gatling.commons.validation.{FailureWrapper, SuccessWrapper, Validation, safely}
+import io.gatling.commons.validation.{FailureWrapper, SuccessWrapper, safely}
+import io.gatling.core.check._
 import io.gatling.core.check.extractor.{CountArity, Extractor, FindAllArity, FindArity, SingleArity}
-import io.gatling.core.check.{DefaultMultipleFindCheckBuilder, ValidatorCheckBuilder}
 import io.gatling.core.session.ExpressionSuccessWrapper
 
 import scala.util.{Failure, Success, Try}
 
 private[gatling] object ResponseExtract {
-  def tryToValidation[V](t: Try[V]): Validation[V] = t match {
-    case Success(a) => a.success
-    case Failure(e) => e.getMessage.failure
-  }
 
   trait ResponseExtractor[T, X] extends Extractor[T, X] {
     val name = "grpcResponse"
@@ -27,18 +23,16 @@ private[gatling] object ResponseExtract {
     override def extract(prepared: T) = f(prepared)
   }
 
-  def extract[T, X](f: T => Option[X]) = ValidatorCheckBuilder[GrpcCheck[T], Try[T], T, X](
-    extender = GrpcCheck(_, GrpcCheck.Value),
-    preparer = tryToValidation,
+  def extract[T, X](f: T => Option[X]) = ValidatorCheckBuilder[ResponseExtract, T, X](
+    displayActualValue = true,
     extractor = SingleExtractor(f).expressionSuccess
   )
 
-  def extractMultiple[T, X](f: T => Option[Seq[X]]) = new DefaultMultipleFindCheckBuilder[GrpcCheck[T], Try[T], T, X](
-    extender = GrpcCheck(_, GrpcCheck.Value),
-    preparer = tryToValidation
+  def extractMultiple[T, X](f: T => Option[Seq[X]]) = new DefaultMultipleFindCheckBuilder[ResponseExtract, T, X](
+    displayActualValue = true
   ) {
     override def findExtractor(_occurrence: Int) = new ResponseExtractor[T, X] with FindArity {
-      override def extract(prepared: T) = f(prepared).flatMap(s =>
+      override def extract(prepared: T): Option[X] = f(prepared).flatMap(s =>
         if (s.isDefinedAt(occurrence)) Some(s(occurrence)) else None
       )
 
@@ -46,11 +40,24 @@ private[gatling] object ResponseExtract {
     }.expressionSuccess
 
     override def findAllExtractor = new ResponseExtractor[T, Seq[X]] with FindAllArity {
-      override def extract(prepared: T) = f(prepared)
+      override def extract(prepared: T): Option[Seq[X]] = f(prepared)
     }.expressionSuccess
 
     override def countExtractor = new ResponseExtractor[T, Int] with CountArity {
-      override def extract(prepared: T) = f(prepared).map(_.size)
+      override def extract(prepared: T): Option[Int] = f(prepared).map(_.size)
     }.expressionSuccess
   }
+
+  def materializer[Res] = new CheckMaterializer[ResponseExtract, GrpcCheck[Res], Try[Res], Res] {
+    override protected def preparer: Preparer[Try[Res], Res] = {
+      case Success(a) => a.success
+      case Failure(e) => e.getMessage.failure
+    }
+
+    override protected def specializer: Specializer[GrpcCheck[Res], Try[Res]] = GrpcCheck(_, GrpcCheck.Value)
+  }
+
 }
+
+// phantom type for implicit materializer resolution
+trait ResponseExtract

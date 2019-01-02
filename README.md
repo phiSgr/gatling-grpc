@@ -1,6 +1,6 @@
 # Gatling-gRPC
 
-A [Gatling](http://gatling.io/) stress test plugin for [grpc](https://grpc.io/).
+A [Gatling](http://gatling.io/) stress test plugin for [gRPC](https://grpc.io/).
 
 ## Usage
 
@@ -15,7 +15,7 @@ along with the two required by Gatling.
 libraryDependencies ++= Seq(
   "io.gatling.highcharts" % "gatling-charts-highcharts" % gatlingVersion % "test",
   "io.gatling" % "gatling-test-framework" % gatlingVersion % "test",
-  "com.github.phisgr" %% "gatling-grpc" % "0.1.0" % "test"
+  "com.github.phisgr" %% "gatling-grpc" % "0.2.0" % "test"
 )
 enablePlugins(GatlingPlugin)
 ```
@@ -74,6 +74,11 @@ unless we tell the compiler to look at the type of the header key
 by separating the arguments into two argument lists.
 
 ## Changelog
+
+#### 0.2.0
+Migrated to Gatling 3.0.
+The new version should be source compatible with the previous one,
+as evidenced by the test which is not changed.
 
 #### 0.1.0
 Previously method references

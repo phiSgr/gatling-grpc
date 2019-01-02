@@ -17,13 +17,13 @@ import io.grpc.stub.{AbstractStub, MetadataUtils}
 import scala.concurrent.ExecutionContextExecutor
 import scala.util.Try
 
-case class GrpcCallAction[Service <: AbstractStub[Service], Req, Res](
-  builder: GrpcCallActionBuilder[Service, Req, Res],
+case class GrpcCallAction[Req, Res](
+  builder: GrpcCallActionBuilder[Req, Res],
   ctx: ScenarioContext,
   next: Action
 ) extends ChainableAction with NameGen {
 
-  override def name = genName("grpcCall")
+  override val name = genName("grpcCall")
 
   override def execute(session: Session): Unit = {
     type ResolvedH = (Metadata.Key[T], T) forSome {type T}
@@ -47,34 +47,37 @@ case class GrpcCallAction[Service <: AbstractStub[Service], Req, Res](
     }
 
     val statsEngine = ctx.coreComponents.statsEngine
-    implicit val ec: ExecutionContextExecutor = ctx.system.dispatcher
+    implicit val ec: ExecutionContextExecutor = ctx.coreComponents.actorSystem.dispatcher
 
     resFV match {
       case Success((start, resF)) =>
         resF.onComplete { t =>
-          val timings = ResponseTimings(start, endTimestamp = System.currentTimeMillis())
+          val endTimestamp = System.currentTimeMillis()
 
           val resolvedChecks = if (builder.checks.exists(_.checksStatus)) builder.checks else {
-            StatusExtract.DefaultCheck.asInstanceOf[Check[Try[Res]]] :: builder.checks
+            StatusExtract.DefaultCheck :: builder.checks
           }
-          val (checkSaveUpdate, checkError) = Check.check(t, session, resolvedChecks)
+          val (checkSaveUpdated, checkError) = Check.check(t, session, resolvedChecks)
 
-          val (status, statusUpdate) = if (checkError.isEmpty) {
-            (OK, Session.Identity)
+          val (status, newSession) = if (checkError.isEmpty) {
+            (OK, checkSaveUpdated)
           } else {
-            (KO, Session.MarkAsFailedUpdate)
+            (KO, checkSaveUpdated.markAsFailed)
           }
 
-          val totalUpdate = checkSaveUpdate andThen statusUpdate
-
-          statsEngine.logResponse(session, builder.requestName, timings, status,
+          statsEngine.logResponse(
+            newSession,
+            builder.requestName,
+            startTimestamp = start,
+            endTimestamp = endTimestamp,
+            status = status,
             responseCode = StatusExtract.extractStatus(t) match {
               case Success(value) => Some(value.getCode.toString)
               case Failure(_) => None
             },
             message = checkError.map(_.message)
           )
-          next ! totalUpdate(session)
+          next ! newSession
 
         }
       case Failure(message) =>
