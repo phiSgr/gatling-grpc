@@ -16,6 +16,7 @@ class ThrottleExample extends Simulation {
   TestServer.startServer()
 
   val grpcConf = grpc(ManagedChannelBuilder.forAddress("localhost", 8080).usePlaintext())
+    .shareChannel
 
   val helloWorld: Expression[HelloWorld] = HelloWorld(name = "World").updateExpr(
     _.username :~ $("username")
@@ -23,7 +24,6 @@ class ThrottleExample extends Simulation {
 
   val s = scenario("Throttle")
     .feed(csv("usernames.csv").queue)
-    .exec(setUpGrpc)
     .exec(
       grpc("Register")
         .rpc(GreetServiceGrpc.METHOD_REGISTER)

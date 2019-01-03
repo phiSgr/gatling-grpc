@@ -5,7 +5,7 @@ version := "0.3.0"
 
 scalaVersion := "2.12.6"
 
-val gatlingVersion = "3.0.2"
+val gatlingVersion = "3.0.3"
 
 scalacOptions ++= Seq(
   "-language:existentials",

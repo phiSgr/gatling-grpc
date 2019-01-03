@@ -24,6 +24,8 @@ case class GrpcCallAction[Req, Res](
 
   override val name = genName("grpcCall")
 
+  private val component: GrpcProtocol.GrpcComponent = ctx.protocolComponentsRegistry.components(GrpcProtocol.GrpcProtocolKey)
+
   private def run(channel: Channel, payload: Req, statsEngine: StatsEngine, session: Session): Unit = {
     implicit val ec: ExecutionContext = ctx.coreComponents.actorSystem.dispatcher
 
@@ -72,7 +74,8 @@ case class GrpcCallAction[Req, Res](
       }
       resolvedPayload <- builder.payload(session)
     } yield {
-      val rawChannel = session(GrpcProtocol.ChannelAttributeName).as[ManagedChannel]
+      val rawChannel = component.getChannel(session)
+
       val channel = if (resolvedHeaders.isEmpty) rawChannel else {
         val headers = new Metadata()
         resolvedHeaders.foreach { case (key, value) => headers.put(key, value) }

@@ -21,7 +21,6 @@ class GrpcExample extends Simulation {
 
   val s = scenario("Example")
     .feed(csv("usernames.csv")) // the first two are duplicated to force an ALREADY_EXISTS error
-    .exec(setUpGrpc)
     .exec(
       grpc("Register")
         .rpc(GreetServiceGrpc.METHOD_REGISTER)

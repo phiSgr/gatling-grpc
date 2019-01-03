@@ -32,10 +32,6 @@ PB.targets in Test := Seq(
 )
 ```
 
-Currently, before making a gRPC call,
-a `ManagedChannel` has to be put inside the user's session by calling
-`.exec(setUpGrpc)`
-
 To make a gRPC call:
 
 ```scala
@@ -76,7 +72,8 @@ by separating the arguments into two argument lists.
 ## Changelog
 
 #### 0.3.0
-Throttling support and channel sharing.
+Throttling support and channel sharing,
+removed `setUpGrpc` as it is done automatically.
 
 #### 0.2.0
 Migrated to Gatling 3.0.

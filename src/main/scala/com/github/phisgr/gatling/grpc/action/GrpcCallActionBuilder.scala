@@ -4,15 +4,13 @@ import com.github.phisgr.gatling.grpc.HeaderPair
 import com.github.phisgr.gatling.grpc.check.{GrpcCheck, ResponseExtract}
 import io.gatling.core.action.Action
 import io.gatling.core.action.builder.ActionBuilder
-import io.gatling.core.check.{CheckBuilder, MultipleFindCheckBuilder, ValidatorCheckBuilder}
+import io.gatling.core.check.{MultipleFindCheckBuilder, ValidatorCheckBuilder}
 import io.gatling.core.session.Expression
 import io.gatling.core.structure.ScenarioContext
-import io.grpc.stub.AbstractStub
 import io.grpc.{Channel, Metadata}
 
 import scala.collection.breakOut
 import scala.concurrent.Future
-import scala.util.Try
 
 case class GrpcCallActionBuilder[Req, Res](
   requestName: String,

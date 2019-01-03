@@ -1,19 +1,26 @@
 package com.github.phisgr.gatling.grpc.protocol
 
-import akka.actor.ActorSystem
 import io.gatling.core.CoreComponents
 import io.gatling.core.config.GatlingConfiguration
 import io.gatling.core.protocol.{Protocol, ProtocolComponents, ProtocolKey}
-import io.gatling.core.session.SessionPrivateAttributes
+import io.gatling.core.session.{Session, SessionPrivateAttributes}
 import io.grpc.{ManagedChannel, ManagedChannelBuilder}
 
 object GrpcProtocol {
-  val ChannelAttributeName = SessionPrivateAttributes.PrivateAttributePrefix + "grpc.channel"
+  val ChannelAttributeName: String = SessionPrivateAttributes.PrivateAttributePrefix + "grpc.channel"
 
-  case class GrpcComponent(channelBuilder: ManagedChannelBuilder[_]) extends ProtocolComponents {
-    override def onStart = identity
+  class GrpcComponent(channelBuilder: ManagedChannelBuilder[_], shareChannel: Boolean) extends ProtocolComponents {
+    private val channel = if (shareChannel) channelBuilder.build() else null
 
-    override def onExit = { s =>
+    private[gatling] def getChannel(session: Session): ManagedChannel = {
+      if (shareChannel) channel else session(GrpcProtocol.ChannelAttributeName).as[ManagedChannel]
+    }
+
+    override val onStart: Session => Session = if (shareChannel) identity else { session =>
+      session.set(GrpcProtocol.ChannelAttributeName, channelBuilder.build())
+    }
+
+    override val onExit = { s =>
       s(ChannelAttributeName).asOption[ManagedChannel].foreach(_.shutdownNow())
     }
   }
@@ -25,10 +32,12 @@ object GrpcProtocol {
       GrpcProtocol(ManagedChannelBuilder.forAddress("localhost", 8080))
 
     override def newComponents(coreComponents: CoreComponents): GrpcProtocol => GrpcComponent = { protocol =>
-      GrpcComponent(protocol.channelBuilder)
+      new GrpcComponent(protocol.channelBuilder, protocol._shareChannel)
     }
 
   }
 }
 
-case class GrpcProtocol(channelBuilder: ManagedChannelBuilder[_]) extends Protocol
+case class GrpcProtocol(channelBuilder: ManagedChannelBuilder[_], private[gatling] val _shareChannel: Boolean = false) extends Protocol {
+  def shareChannel: GrpcProtocol = copy(_shareChannel = true)
+}

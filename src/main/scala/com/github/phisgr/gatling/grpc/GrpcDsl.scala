@@ -1,6 +1,6 @@
 package com.github.phisgr.gatling.grpc
 
-import com.github.phisgr.gatling.grpc.action.{GrpcCallActionBuilder, GrpcSetUpActionBuilder}
+import com.github.phisgr.gatling.grpc.action.GrpcCallActionBuilder
 import com.github.phisgr.gatling.grpc.protocol.GrpcProtocol
 import io.gatling.commons.NotNothing
 import io.gatling.commons.validation.{Failure, Success}
@@ -41,8 +41,6 @@ trait GrpcDsl {
     def rpc[Req, Res](fun: Service => Req => Future[Res])(request: Expression[Req]) =
       GrpcCallActionBuilder(requestName, stub andThen fun, request, headers = Nil)
   }
-
-  val setUpGrpc = GrpcSetUpActionBuilder
 
   def $[T: ClassTag : NotNothing](name: String): Expression[T] = s => s.attributes.get(name) match {
     case Some(t: T) => Success(t)
