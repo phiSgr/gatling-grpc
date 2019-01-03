@@ -75,6 +75,9 @@ by separating the arguments into two argument lists.
 
 ## Changelog
 
+#### 0.3.0
+Throttling support and channel sharing.
+
 #### 0.2.0
 Migrated to Gatling 3.0.
 The new version should be source compatible with the previous one,

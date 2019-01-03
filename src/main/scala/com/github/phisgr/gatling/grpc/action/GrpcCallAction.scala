@@ -8,14 +8,13 @@ import io.gatling.commons.validation.{Failure, Success, SuccessWrapper, Validati
 import io.gatling.core.action.{Action, ChainableAction}
 import io.gatling.core.check.Check
 import io.gatling.core.session.Session
-import io.gatling.core.stats.message.ResponseTimings
+import io.gatling.core.stats.StatsEngine
 import io.gatling.core.structure.ScenarioContext
 import io.gatling.core.util.NameGen
 import io.grpc._
-import io.grpc.stub.{AbstractStub, MetadataUtils}
+import io.grpc.stub.MetadataUtils
 
-import scala.concurrent.ExecutionContextExecutor
-import scala.util.Try
+import scala.concurrent.ExecutionContext
 
 case class GrpcCallAction[Req, Res](
   builder: GrpcCallActionBuilder[Req, Res],
@@ -25,8 +24,44 @@ case class GrpcCallAction[Req, Res](
 
   override val name = genName("grpcCall")
 
+  private def run(channel: Channel, payload: Req, statsEngine: StatsEngine, session: Session): Unit = {
+    implicit val ec: ExecutionContext = ctx.coreComponents.actorSystem.dispatcher
+
+    val start = System.currentTimeMillis()
+    builder.method(channel)(payload).onComplete { t =>
+      val endTimestamp = System.currentTimeMillis()
+
+      val resolvedChecks = if (builder.checks.exists(_.checksStatus)) builder.checks else {
+        StatusExtract.DefaultCheck :: builder.checks
+      }
+      val (checkSaveUpdated, checkError) = Check.check(t, session, resolvedChecks)
+
+      val (status, newSession) = if (checkError.isEmpty) {
+        (OK, checkSaveUpdated)
+      } else {
+        (KO, checkSaveUpdated.markAsFailed)
+      }
+
+      statsEngine.logResponse(
+        newSession,
+        builder.requestName,
+        startTimestamp = start,
+        endTimestamp = endTimestamp,
+        status = status,
+        responseCode = StatusExtract.extractStatus(t) match {
+          case Success(value) => Some(value.getCode.toString)
+          case Failure(_) => None
+        },
+        message = checkError.map(_.message)
+      )
+      next ! newSession
+    }
+  }
+
   override def execute(session: Session): Unit = {
     type ResolvedH = (Metadata.Key[T], T) forSome {type T}
+
+    val statsEngine = ctx.coreComponents.statsEngine
 
     val resFV = for {
       resolvedHeaders <- builder.headers.foldLeft[Validation[List[ResolvedH]]](Nil.success) { case (lV, HeaderPair(key, value)) =>
@@ -43,46 +78,17 @@ case class GrpcCallAction[Req, Res](
         resolvedHeaders.foreach { case (key, value) => headers.put(key, value) }
         ClientInterceptors.intercept(rawChannel, MetadataUtils.newAttachHeadersInterceptor(headers))
       }
-      System.currentTimeMillis() -> builder.method(channel)(resolvedPayload)
+
+      if (ctx.throttled) {
+        ctx.coreComponents.throttler.throttle(session.scenario, () => run(channel, resolvedPayload, statsEngine, session))
+      } else {
+        run(channel, resolvedPayload, statsEngine, session)
+      }
     }
 
-    val statsEngine = ctx.coreComponents.statsEngine
-    implicit val ec: ExecutionContextExecutor = ctx.coreComponents.actorSystem.dispatcher
-
-    resFV match {
-      case Success((start, resF)) =>
-        resF.onComplete { t =>
-          val endTimestamp = System.currentTimeMillis()
-
-          val resolvedChecks = if (builder.checks.exists(_.checksStatus)) builder.checks else {
-            StatusExtract.DefaultCheck :: builder.checks
-          }
-          val (checkSaveUpdated, checkError) = Check.check(t, session, resolvedChecks)
-
-          val (status, newSession) = if (checkError.isEmpty) {
-            (OK, checkSaveUpdated)
-          } else {
-            (KO, checkSaveUpdated.markAsFailed)
-          }
-
-          statsEngine.logResponse(
-            newSession,
-            builder.requestName,
-            startTimestamp = start,
-            endTimestamp = endTimestamp,
-            status = status,
-            responseCode = StatusExtract.extractStatus(t) match {
-              case Success(value) => Some(value.getCode.toString)
-              case Failure(_) => None
-            },
-            message = checkError.map(_.message)
-          )
-          next ! newSession
-
-        }
-      case Failure(message) =>
-        statsEngine.reportUnbuildableRequest(session, builder.requestName, message)
-        next ! session.markAsFailed
+    resFV.onFailure { message =>
+      statsEngine.reportUnbuildableRequest(session, builder.requestName, message)
+      next ! session.markAsFailed
     }
 
   }
