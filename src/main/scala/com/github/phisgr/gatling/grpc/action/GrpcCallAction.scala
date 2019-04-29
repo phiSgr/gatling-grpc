@@ -28,10 +28,11 @@ case class GrpcCallAction[Req, Res](
 
   private def run(channel: Channel, payload: Req, statsEngine: StatsEngine, session: Session): Unit = {
     implicit val ec: ExecutionContext = ctx.coreComponents.actorSystem.dispatcher
+    val clock = ctx.coreComponents.clock
 
-    val start = System.currentTimeMillis()
+    val start = clock.nowMillis
     builder.method(channel)(payload).onComplete { t =>
-      val endTimestamp = System.currentTimeMillis()
+      val endTimestamp = clock.nowMillis
 
       val resolvedChecks = if (builder.checks.exists(_.checksStatus)) builder.checks else {
         StatusExtract.DefaultCheck :: builder.checks
