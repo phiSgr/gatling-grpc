@@ -17,9 +17,9 @@ import scala.reflect.ClassTag
 trait GrpcDsl {
   def grpc(channelBuilder: ManagedChannelBuilder[_]) = GrpcProtocol(channelBuilder)
 
-  def grpc(requestName: String) = new Call(requestName)
+  def grpc(requestName: Expression[String]) = new Call(requestName)
 
-  class Call private[gatling](requestName: String) {
+  class Call private[gatling](requestName: Expression[String]) {
     def service[Service <: AbstractStub[Service]](stub: Channel => Service) = new CallWithService(requestName, stub)
 
     def rpc[Req, Res](method: MethodDescriptor[Req, Res]) = {
@@ -28,7 +28,7 @@ trait GrpcDsl {
     }
   }
 
-  class CallWithMethod[Req, Res] private[gatling](requestName: String, method: MethodDescriptor[Req, Res]) {
+  class CallWithMethod[Req, Res] private[gatling](requestName: Expression[String], method: MethodDescriptor[Req, Res]) {
     val f = { channel: Channel =>
       request: Req =>
         guavaFuture2ScalaFuture(ClientCalls.futureUnaryCall(channel.newCall(method, CallOptions.DEFAULT), request))
@@ -37,7 +37,7 @@ trait GrpcDsl {
     def payload(req: Expression[Req]) = GrpcCallActionBuilder(requestName, f, req, headers = Nil)
   }
 
-  class CallWithService[Service <: AbstractStub[Service]] private[gatling](requestName: String, stub: Channel => Service) {
+  class CallWithService[Service <: AbstractStub[Service]] private[gatling](requestName: Expression[String], stub: Channel => Service) {
     def rpc[Req, Res](fun: Service => Req => Future[Res])(request: Expression[Req]) =
       GrpcCallActionBuilder(requestName, stub andThen fun, request, headers = Nil)
   }

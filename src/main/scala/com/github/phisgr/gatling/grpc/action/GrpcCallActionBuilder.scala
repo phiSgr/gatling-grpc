@@ -13,7 +13,7 @@ import scala.collection.breakOut
 import scala.concurrent.Future
 
 case class GrpcCallActionBuilder[Req, Res](
-  requestName: String,
+  requestName: Expression[String],
   method: Channel => Req => Future[Res],
   payload: Expression[Req],
   headers: List[HeaderPair[_]] = Nil,

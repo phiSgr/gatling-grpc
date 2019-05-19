@@ -4,10 +4,11 @@ import com.github.phisgr.gatling.grpc.HeaderPair
 import com.github.phisgr.gatling.grpc.check.StatusExtract
 import com.github.phisgr.gatling.grpc.protocol.GrpcProtocol
 import io.gatling.commons.stats.{KO, OK}
+import io.gatling.commons.util.Clock
 import io.gatling.commons.validation.{Failure, Success, SuccessWrapper, Validation}
-import io.gatling.core.action.{Action, ChainableAction}
+import io.gatling.core.action.{Action, RequestAction}
 import io.gatling.core.check.Check
-import io.gatling.core.session.Session
+import io.gatling.core.session.{Expression, Session}
 import io.gatling.core.stats.StatsEngine
 import io.gatling.core.structure.ScenarioContext
 import io.gatling.core.util.NameGen
@@ -20,15 +21,19 @@ case class GrpcCallAction[Req, Res](
   builder: GrpcCallActionBuilder[Req, Res],
   ctx: ScenarioContext,
   next: Action
-) extends ChainableAction with NameGen {
+) extends RequestAction with NameGen {
+  override def clock: Clock = ctx.coreComponents.clock
+
+  override def statsEngine: StatsEngine = ctx.coreComponents.statsEngine
 
   override val name = genName("grpcCall")
 
+  override def requestName: Expression[String] = builder.requestName
+
   private val component: GrpcProtocol.GrpcComponent = ctx.protocolComponentsRegistry.components(GrpcProtocol.GrpcProtocolKey)
 
-  private def run(channel: Channel, payload: Req, statsEngine: StatsEngine, session: Session): Unit = {
+  private def run(channel: Channel, payload: Req, session: Session, resolvedRequestName: String): Unit = {
     implicit val ec: ExecutionContext = ctx.coreComponents.actorSystem.dispatcher
-    val clock = ctx.coreComponents.clock
 
     val start = clock.nowMillis
     builder.method(channel)(payload).onComplete { t =>
@@ -47,7 +52,7 @@ case class GrpcCallAction[Req, Res](
 
       statsEngine.logResponse(
         newSession,
-        builder.requestName,
+        resolvedRequestName,
         startTimestamp = start,
         endTimestamp = endTimestamp,
         status = status,
@@ -61,12 +66,9 @@ case class GrpcCallAction[Req, Res](
     }
   }
 
-  override def execute(session: Session): Unit = {
+  override def sendRequest(requestName: String, session: Session): Validation[Unit] = {
     type ResolvedH = (Metadata.Key[T], T) forSome {type T}
-
-    val statsEngine = ctx.coreComponents.statsEngine
-
-    val resFV = for {
+    for {
       resolvedHeaders <- builder.headers.foldLeft[Validation[List[ResolvedH]]](Nil.success) { case (lV, HeaderPair(key, value)) =>
         for {
           l <- lV
@@ -76,24 +78,18 @@ case class GrpcCallAction[Req, Res](
       resolvedPayload <- builder.payload(session)
     } yield {
       val rawChannel = component.getChannel(session)
-
       val channel = if (resolvedHeaders.isEmpty) rawChannel else {
         val headers = new Metadata()
         resolvedHeaders.foreach { case (key, value) => headers.put(key, value) }
         ClientInterceptors.intercept(rawChannel, MetadataUtils.newAttachHeadersInterceptor(headers))
       }
-
       if (ctx.throttled) {
-        ctx.coreComponents.throttler.throttle(session.scenario, () => run(channel, resolvedPayload, statsEngine, session))
+        ctx.coreComponents.throttler.throttle(session.scenario, () =>
+          run(channel, resolvedPayload, session, resolvedRequestName = requestName)
+        )
       } else {
-        run(channel, resolvedPayload, statsEngine, session)
+        run(channel, resolvedPayload, session, resolvedRequestName = requestName)
       }
     }
-
-    resFV.onFailure { message =>
-      statsEngine.reportUnbuildableRequest(session, builder.requestName, message)
-      next ! session.markAsFailed
-    }
-
   }
 }
