@@ -19,6 +19,12 @@ class GrpcExample extends Simulation {
     _.username :~ $("username")
   )
 
+  val successfulCall = grpc("Success")
+    .rpc(GreetServiceGrpc.METHOD_GREET)
+    .payload(helloWorld)
+    .header(TokenHeaderKey)($("token"))
+    .extract(_.data.split(' ').headOption)(_ saveAs "s")
+
   val s = scenario("Example")
     .feed(csv("usernames.csv")) // the first two are duplicated to force an ALREADY_EXISTS error
     .exec(
@@ -30,34 +36,29 @@ class GrpcExample extends Simulation {
         .extract(_.token.some)(_ saveAs "token")
     )
     .exitHereIfFailed
+    .exec(successfulCall)
+    .exec(
+      grpc("Cannot Build")
+        .rpc(GreetServiceGrpc.METHOD_GREET)
+        .payload($("notDefined"))
+        .check(
+          // the extraction checks can be added inside .check
+          // but the extraction functions need type annotation
+          // so .extract and .extractMultiple are added to GrpcCallActionBuilder, see below
+          extract { c: ChatMessage => c.username.some },
+          extractMultiple { c: ChatMessage => c.data.split(' ').toSeq.some }.find(5)
+        )
+    )
+    .exec(
+      grpc("Cannot Build, with old API")
+        .service(GreetServiceGrpc.stub)
+        // Session attribute "s" is a String (see line 26),
+        // but we need a HelloWorld here.
+        // Note that we do not need to supply the type parameter, it is just here for clarity
+        .rpc(_.greet)($[HelloWorld]("s"))
+    )
     .repeat(1000) {
-      exec(
-        grpc("Success")
-          .rpc(GreetServiceGrpc.METHOD_GREET)
-          .payload(helloWorld)
-          .header(TokenHeaderKey)($("token"))
-          .extract(_.data.split(' ').headOption)(_ saveAs "s")
-      )
-        .exec(
-          grpc("Cannot Build")
-            .rpc(GreetServiceGrpc.METHOD_GREET)
-            .payload($("notDefined"))
-            .check(
-              // the extraction checks can be added inside .check
-              // but the extraction functions need type annotation
-              // so .extract and .extractMultiple are added to GrpcCallActionBuilder, see below
-              extract { c: ChatMessage => c.username.some },
-              extractMultiple { c: ChatMessage => c.data.split(' ').toSeq.some }.find(5)
-            )
-        )
-        .exec(
-          grpc("Cannot Build, with old API")
-            .service(GreetServiceGrpc.stub)
-            // Session attribute "s" is a String (see line 40),
-            // but we need a HelloWorld here.
-            // Note that we do not need to supply the type parameter, it is just here for clarity
-            .rpc(_.greet)($[HelloWorld]("s"))
-        )
+      exec(successfulCall)
         .exec(
           grpc("Expect UNAUTHENTICATED")
             .rpc(GreetServiceGrpc.METHOD_GREET)
