@@ -15,7 +15,7 @@ along with the two required by Gatling.
 libraryDependencies ++= Seq(
   "io.gatling.highcharts" % "gatling-charts-highcharts" % gatlingVersion % "test",
   "io.gatling" % "gatling-test-framework" % gatlingVersion % "test",
-  "com.github.phisgr" %% "gatling-grpc" % "0.3.0" % "test"
+  "com.github.phisgr" %% "gatling-grpc" % "0.4.0" % "test"
 )
 enablePlugins(GatlingPlugin)
 ```
@@ -70,6 +70,11 @@ unless we tell the compiler to look at the type of the header key
 by separating the arguments into two argument lists.
 
 ## Changelog
+
+#### 0.4.0
+Uses the `RequestAction`,
+if you have unbuildable requests in your tests,
+you will get more error logs.
 
 #### 0.3.0
 Throttling support and channel sharing,
