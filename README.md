@@ -2,6 +2,30 @@
 
 A [Gatling](http://gatling.io/) stress test plugin for [gRPC](https://grpc.io/).
 
+## Issues
+
+Please do NOT use the issue tracker to ask questions.
+The issue tracker is now strictly for bug reports and feature requests,
+which are more than welcomed.
+
+If you need help, the documentation on [Gatling](https://gatling.io/docs/3.1)
+and [gRPC Java](https://grpc.io/docs/tutorials/basic/java/)
+are both very helpful.
+This is a very small library, the problems you encounter are likely
+not Gatling-gRPC specific and can be solved by better understanding
+Gatling, gRPC, or general tooling.
+
+If you get stuck, feel free to send me an email.
+But before you do, please make sure to read
+[How To Ask Questions The Smart Way](http://www.catb.org/~esr/faqs/smart-questions.html).
+This page is not related to me. I link it here with the hope that
+this document will make communication more effective.
+
+Unresolved questions stay longer in my head than I want them to.
+As a help for my mental discipline,
+if your problem cannot be solved in one email,
+I will not respond further until I receive 100 USD in PayPal.
+
 ## Usage
 
 Because of gRPC's need of code generation,
