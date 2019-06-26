@@ -31,6 +31,8 @@ I will not respond further until I receive 100 USD in PayPal.
 Because of gRPC's need of code generation,
 I assume you are running the tests using the
 [SBT plugin](https://gatling.io/docs/current/extensions/sbt_plugin/).
+For a quickstart guide, see this
+[Medium article](https://medium.com/@georgeleung_7777/a-demo-of-gatling-grpc-bc92158ca808).
 
 To use this library, add this library to the test dependencies
 along with the two required by Gatling.
