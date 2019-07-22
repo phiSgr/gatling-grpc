@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package test;
+
+option java_package = "com.github.phisgr.gatling.pb";
+
+message SimpleMessage {
+    string s = 1;
+}
+
+message ComplexMessage {
+    SimpleMessage m = 1;
+    int32 i = 2;
+}
