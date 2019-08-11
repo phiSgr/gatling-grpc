@@ -1,11 +1,11 @@
 name := "gatling-grpc"
 
 organization := "com.github.phisgr"
-version := "0.4.1"
+version := "0.5.0"
 
 scalaVersion := "2.12.6"
 
-val gatlingVersion = "3.1.3"
+val gatlingVersion = "3.2.0"
 
 scalacOptions ++= Seq(
   "-language:existentials",

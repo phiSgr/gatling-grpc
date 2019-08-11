@@ -9,8 +9,8 @@ import scala.annotation.unchecked.uncheckedVariance
 import scala.util.Try
 
 case class GrpcCheck[-T](wrapped: Check[Try[T]@uncheckedVariance], scope: Scope) extends Check[Try[T]@uncheckedVariance] {
-  override def check(response: Try[T], session: Session)(implicit cache: JMap[Any, Any]) =
-    wrapped.check(response, session)(cache)
+  override def check(response: Try[T], session: Session, cache: JMap[Any, Any]) =
+    wrapped.check(response, session, cache)
 
   def checksStatus = scope == Status
 }

@@ -41,7 +41,7 @@ along with the two required by Gatling.
 libraryDependencies ++= Seq(
   "io.gatling.highcharts" % "gatling-charts-highcharts" % gatlingVersion % "test",
   "io.gatling" % "gatling-test-framework" % gatlingVersion % "test",
-  "com.github.phisgr" %% "gatling-grpc" % "0.4.1" % "test"
+  "com.github.phisgr" %% "gatling-grpc" % "0.5.0" % "test"
 )
 enablePlugins(GatlingPlugin)
 ```
@@ -96,6 +96,10 @@ unless we tell the compiler to look at the type of the header key
 by separating the arguments into two argument lists.
 
 ## Changelog
+
+#### 0.5.0
+Upgrades to Gatling 3.2.0.
+Fixed the duplicated "extraction crashed" in error messages.
 
 #### 0.4.1
 The `Expressions` created with `updateExpr` should be faster.

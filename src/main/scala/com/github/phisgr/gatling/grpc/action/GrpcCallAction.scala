@@ -42,7 +42,8 @@ case class GrpcCallAction[Req, Res](
       val resolvedChecks = if (builder.checks.exists(_.checksStatus)) builder.checks else {
         StatusExtract.DefaultCheck :: builder.checks
       }
-      val (checkSaveUpdated, checkError) = Check.check(t, session, resolvedChecks)
+      // Not using preparedCache because the prepare step is cheap
+      val (checkSaveUpdated, checkError) = Check.check(t, session, resolvedChecks, preparedCache = null)
 
       val (status, newSession) = if (checkError.isEmpty) {
         (OK, checkSaveUpdated)
