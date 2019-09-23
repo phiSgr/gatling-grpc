@@ -3,7 +3,8 @@ val commonSettings = Seq(
   scalaVersion := "2.12.8"
 )
 
-val gatlingVersion = "3.2.0"
+val gatlingVersion = "3.2.1"
+val gatlingCore = "io.gatling" % "gatling-core" % gatlingVersion
 
 val publishSettings = {
   import xerial.sbt.Sonatype._
@@ -36,7 +37,7 @@ lazy val root = (project in file("."))
       "io.grpc" % "grpc-netty" % scalapb.compiler.Version.grpcJavaVersion,
       "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf",
       "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion,
-      "io.gatling" % "gatling-core" % gatlingVersion
+      gatlingCore
     ),
     libraryDependencies ++= Seq(
       "io.gatling.highcharts" % "gatling-charts-highcharts" % gatlingVersion % "test",
@@ -44,11 +45,25 @@ lazy val root = (project in file("."))
     ),
   )
 
+lazy val javaPb = (project in file("java-pb"))
+  .settings(commonSettings: _*)
+  .settings(publishSettings: _*)
+  .settings(
+    name := "gatling-javapb",
+    version := "0.0.0",
+    libraryDependencies ++= Seq(
+      "com.google.protobuf" % "protobuf-java" % "3.9.1",
+      gatlingCore,
+    ),
+    scalacOptions += "-language:implicitConversions",
+  )
+
 lazy val bench = (project in file("bench"))
-  .dependsOn(root)
+  .dependsOn(root, javaPb)
   .enablePlugins(JmhPlugin)
   .settings(
     PB.targets in Compile := Seq(
+      PB.gens.java -> (sourceManaged in Compile).value,
       scalapb.gen() -> (sourceManaged in Compile).value
-    )
+    ),
   )

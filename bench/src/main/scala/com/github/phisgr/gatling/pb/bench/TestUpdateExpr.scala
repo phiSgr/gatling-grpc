@@ -1,15 +1,18 @@
-package com.github.phisgr.gatling.pb
+package com.github.phisgr.gatling.pb.bench
 
 import java.util.concurrent.TimeUnit
 
 import com.github.phisgr.gatling.grpc.Predef._
+import com.github.phisgr.gatling.javapb._
+import com.github.phisgr.gatling.pb.Test
 import com.github.phisgr.gatling.pb.test._
 import io.gatling.commons.validation.Validation
-import io.gatling.core.session.Session
+import io.gatling.core.session.{Expression, Session}
 import org.openjdk.jmh.annotations.{Benchmark, OutputTimeUnit}
 
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 class TestUpdateExpr {
+
   import TestUpdateExpr._
 
   @Benchmark
@@ -21,16 +24,37 @@ class TestUpdateExpr {
   def updateComplexExpr(): Validation[ComplexMessage] = {
     ComplexExpr(Session1)
   }
+
+  @Benchmark
+  def updateSimpleExprJava(): Validation[Test.SimpleMessage] = {
+    SimpleExprJava(Session1)
+  }
+
+  @Benchmark
+  def updateComplexExprJava(): Validation[Test.ComplexMessage] = {
+    ComplexExprJava(Session1)
+  }
 }
 
 object TestUpdateExpr {
   private val SimpleExpr = SimpleMessage.defaultInstance.updateExpr(
     _.s :~ $("name")
   )
+
+  private val SimpleExprJava: Expression[Test.SimpleMessage] =
+    Test.SimpleMessage.getDefaultInstance.updateWith[Test.SimpleMessage.Builder]
+      .update(_.setS)($("name"))
+
   private val ComplexExpr = ComplexMessage.defaultInstance.updateExpr(
     _.m.s :~ $("name"),
     _.i :~ $("count"),
   )
+
+  private val ComplexExprJava: Expression[Test.ComplexMessage] =
+    Test.ComplexMessage.getDefaultInstance.updateWith[Test.ComplexMessage.Builder]
+      .update(_.getMBuilder.setS)($("name"))
+      .update(_.setI)($("count"))
+
   private val Session1 = Session(
     scenario = "Scenario",
     userId = 1L,
