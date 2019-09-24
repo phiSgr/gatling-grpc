@@ -128,4 +128,5 @@ But the old one is still kept for more flexibility.
 
 ## Development
 
-`sbt clean coverage gatling:test coverageReport` for a coverage report.
+`sbt clean coverage gatling:test coverageReport` for a coverage report.  
+`sbt bench/clean 'bench/jmh:run -i 10 -wi 5 -f1 -t1'` for JMH tests.

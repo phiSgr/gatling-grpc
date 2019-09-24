@@ -34,6 +34,16 @@ class TestUpdateExpr {
   def updateComplexExprJava(): Validation[Test.ComplexMessage] = {
     ComplexExprJava(Session1)
   }
+
+  @Benchmark
+  def lambdaSimpleExprJava(): Validation[Test.SimpleMessage] = {
+    SimpleExprJavaLambda(Session1)
+  }
+
+  @Benchmark
+  def lambdaComplexExprJava(): Validation[Test.ComplexMessage] = {
+    ComplexExprJavaLambda(Session1)
+  }
 }
 
 object TestUpdateExpr {
@@ -45,6 +55,16 @@ object TestUpdateExpr {
     Test.SimpleMessage.getDefaultInstance.updateWith[Test.SimpleMessage.Builder]
       .update(_.setS)($("name"))
 
+  private val SimpleExprJavaLambda: Expression[Test.SimpleMessage] = { s: Session =>
+    for {
+      name <- s("name").validate[String]
+    } yield {
+      val builder = Test.SimpleMessage.newBuilder()
+      builder.setS(name)
+      builder.build()
+    }
+  }
+
   private val ComplexExpr = ComplexMessage.defaultInstance.updateExpr(
     _.m.s :~ $("name"),
     _.i :~ $("count"),
@@ -54,6 +74,18 @@ object TestUpdateExpr {
     Test.ComplexMessage.getDefaultInstance.updateWith[Test.ComplexMessage.Builder]
       .update(_.getMBuilder.setS)($("name"))
       .update(_.setI)($("count"))
+
+  private val ComplexExprJavaLambda: Expression[Test.ComplexMessage] = { s: Session =>
+    for {
+      name <- s("name").validate[String]
+      count <- s("count").validate[Int]
+    } yield {
+      val builder = Test.ComplexMessage.newBuilder()
+      builder.getMBuilder.setS(name)
+      builder.setI(count)
+      builder.build()
+    }
+  }
 
   private val Session1 = Session(
     scenario = "Scenario",
