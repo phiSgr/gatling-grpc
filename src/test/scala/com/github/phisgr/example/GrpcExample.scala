@@ -12,8 +12,10 @@ import io.grpc.{ManagedChannelBuilder, Status}
 
 class GrpcExample extends Simulation {
   TestServer.startServer()
+  TestServer.startEmptyServer()
 
   val grpcConf = grpc(ManagedChannelBuilder.forAddress("localhost", 8080).usePlaintext())
+  val emptyGrpc = grpc(ManagedChannelBuilder.forAddress("localhost", 9999).usePlaintext())
 
   val helloWorld: Expression[HelloWorld] = HelloWorld(name = "World").updateExpr(
     _.username :~ $("username")
@@ -37,6 +39,13 @@ class GrpcExample extends Simulation {
     )
     .exitHereIfFailed
     .exec(successfulCall)
+    .exec(
+      grpc("Empty server")
+        .rpc(GreetServiceGrpc.METHOD_REGISTER)
+        .payload(RegisterRequest.defaultInstance)
+        .check(statusCode is Status.Code.UNIMPLEMENTED)
+        .target(emptyGrpc)
+    )
     .exec(
       grpc("Cannot Build")
         .rpc(GreetServiceGrpc.METHOD_GREET)

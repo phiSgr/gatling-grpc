@@ -2,6 +2,7 @@ package com.github.phisgr.gatling.grpc.action
 
 import com.github.phisgr.gatling.grpc.HeaderPair
 import com.github.phisgr.gatling.grpc.check.{GrpcCheck, ResponseExtract}
+import com.github.phisgr.gatling.grpc.protocol.GrpcProtocol
 import io.gatling.core.action.Action
 import io.gatling.core.action.builder.ActionBuilder
 import io.gatling.core.check.{MultipleFindCheckBuilder, ValidatorCheckBuilder}
@@ -17,7 +18,8 @@ case class GrpcCallActionBuilder[Req, Res](
   method: Channel => Req => Future[Res],
   payload: Expression[Req],
   headers: List[HeaderPair[_]] = Nil,
-  checks: List[GrpcCheck[Res]] = Nil
+  checks: List[GrpcCheck[Res]] = Nil,
+  protocolOverride: Option[GrpcProtocol] = None
 ) extends ActionBuilder {
   override def build(ctx: ScenarioContext, next: Action): Action = GrpcCallAction(this, ctx, next)
 
@@ -54,5 +56,7 @@ case class GrpcCallActionBuilder[Req, Res](
       checks = checks ::: mapToList(ts)(_.apply(e))
     )
   }
+
+  def target(protocol: GrpcProtocol) = copy(protocolOverride = Some(protocol))
 
 }

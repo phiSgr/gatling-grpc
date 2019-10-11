@@ -69,6 +69,11 @@ object TestServer {
     server
   }
 
+  def startEmptyServer() = {
+    ServerBuilder.forPort(9999)
+      .build.start
+  }
+
   def main(args: Array[String]): Unit = {
     val server = startServer()
     server.awaitTermination(10, TimeUnit.MINUTES)

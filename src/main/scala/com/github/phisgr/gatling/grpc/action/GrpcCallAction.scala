@@ -30,7 +30,10 @@ case class GrpcCallAction[Req, Res](
 
   override def requestName: Expression[String] = builder.requestName
 
-  private val component: GrpcProtocol.GrpcComponent = ctx.protocolComponentsRegistry.components(GrpcProtocol.GrpcProtocolKey)
+  private val component: GrpcProtocol.GrpcComponent = {
+    val protocolKey = builder.protocolOverride.fold(GrpcProtocol.GrpcProtocolKey)(_.overridingKey)
+    ctx.protocolComponentsRegistry.components(protocolKey)
+  }
 
   private def run(channel: Channel, payload: Req, session: Session, resolvedRequestName: String): Unit = {
     implicit val ec: ExecutionContext = ctx.coreComponents.actorSystem.dispatcher
