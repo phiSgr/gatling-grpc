@@ -1,6 +1,6 @@
 # Gatling-gRPC
 
-A [Gatling](http://gatling.io/) stress test plugin for [gRPC](https://grpc.io/).
+A [Gatling](http://gatling.io/) load test plugin for [gRPC](https://grpc.io/).
 
 ## Issues
 
@@ -8,7 +8,7 @@ Please do NOT use the issue tracker to ask questions.
 The issue tracker is now strictly for bug reports and feature requests,
 which are more than welcomed.
 
-If you need help, the documentation on [Gatling](https://gatling.io/docs/3.1)
+If you need help, the documentation on [Gatling](https://gatling.io/docs/current)
 and [gRPC Java](https://grpc.io/docs/tutorials/basic/java/)
 are both very helpful.
 This is a very small library, the problems you encounter are likely
