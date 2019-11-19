@@ -71,7 +71,8 @@ exec(
 )
 ```
 
-For a complete demo, see `GrpcExample` in test.
+For a complete demo and various examples,
+see [`GrpcExample` in test](src/test/scala/com/github/phisgr/example/GrpcExample.scala).
 
 ## A word on Scala
 

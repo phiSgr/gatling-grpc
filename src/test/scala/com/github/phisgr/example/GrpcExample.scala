@@ -61,7 +61,7 @@ class GrpcExample extends Simulation {
     .exec(
       grpc("Cannot Build, with old API")
         .service(GreetServiceGrpc.stub)
-        // Session attribute "s" is a String (see line 26),
+        // Session attribute "s" is a String (see line 28),
         // but we need a HelloWorld here.
         // Note that we do not need to supply the type parameter, it is just here for clarity
         .rpc(_.greet)($[HelloWorld]("s"))
