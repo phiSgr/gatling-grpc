@@ -3,8 +3,10 @@ package com.github.phisgr.gatling.grpc.action
 import com.github.phisgr.gatling.grpc.HeaderPair
 import com.github.phisgr.gatling.grpc.check.StatusExtract
 import com.github.phisgr.gatling.grpc.protocol.GrpcProtocol
+import com.github.phisgr.gatling.util.GrpcStringBuilder
 import io.gatling.commons.stats.{KO, OK}
 import io.gatling.commons.util.Clock
+import io.gatling.commons.util.StringHelper.Eol
 import io.gatling.commons.validation.{Failure, Success, SuccessWrapper, Validation}
 import io.gatling.core.action.{Action, RequestAction}
 import io.gatling.core.check.Check
@@ -12,10 +14,12 @@ import io.gatling.core.session.{Expression, Session}
 import io.gatling.core.stats.StatsEngine
 import io.gatling.core.structure.ScenarioContext
 import io.gatling.core.util.NameGen
+import io.gatling.netty.util.StringBuilderPool
 import io.grpc._
 import io.grpc.stub.MetadataUtils
 
 import scala.concurrent.ExecutionContext
+import scala.util
 
 case class GrpcCallAction[Req, Res](
   builder: GrpcCallActionBuilder[Req, Res],
@@ -54,6 +58,7 @@ case class GrpcCallAction[Req, Res](
         (KO, checkSaveUpdated.markAsFailed)
       }
 
+      val errorMessage = checkError.map(_.message)
       statsEngine.logResponse(
         newSession,
         resolvedRequestName,
@@ -64,8 +69,34 @@ case class GrpcCallAction[Req, Res](
           case Success(value) => Some(value.getCode.toString)
           case Failure(_) => None
         },
-        message = checkError.map(_.message)
+        message = errorMessage
       )
+      // TODO: log gRPC request after disallowing arbitrary functions by using old API
+      if (status == KO && logger.underlying.isDebugEnabled) {
+        (t match {
+          case util.Failure(e: StatusException) => Some(e.getStatus -> e.getTrailers)
+          case util.Failure(e: StatusRuntimeException) => Some(e.getStatus -> e.getTrailers)
+          case _ => None
+        }).foreach { case (status, trailers) =>
+          logger.debug(
+            StringBuilderPool.DEFAULT
+              .get()
+              .append(Eol)
+              .appendWithEol(">>>>>>>>>>>>>>>>>>>>>>>>>>")
+              .appendWithEol("Request:")
+              .appendWithEol(s"$resolvedRequestName: KO ${errorMessage.getOrElse("")}")
+              .appendWithEol("=========================")
+              .appendWithEol("Session:")
+              .appendWithEol(session)
+              .appendWithEol("=========================")
+              .appendWithEol("gRPC response:")
+              .appendStatus(status)
+              .appendTrailers(trailers)
+              .append("<<<<<<<<<<<<<<<<<<<<<<<<<")
+              .toString
+          )
+        }
+      }
       next ! newSession
     }
   }

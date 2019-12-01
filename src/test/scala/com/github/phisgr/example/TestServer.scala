@@ -47,8 +47,8 @@ object TestServer {
         call: ServerCall[ReqT, RespT], headers: Metadata,
         next: ServerCallHandler[ReqT, RespT]
       ): ServerCall.Listener[ReqT] = {
-        if (new Random().nextInt(100) == 0) {
-          call.close(Status.UNAVAILABLE, new Metadata())
+        if (new Random().nextInt(100000) == 0) {
+          call.close(Status.UNAVAILABLE.withDescription("You're unlucky."), new Metadata())
           new ServerCall.Listener[ReqT] {}
         } else {
           val context = Context.current()

@@ -8,7 +8,7 @@
 		<immediateFlush>false</immediateFlush>
 	</appender>
 
-	<logger name="com.github.phisgr.gatling.grpc" level="INFO" />
+	<logger name="com.github.phisgr.gatling.grpc" level="DEBUG" />
 
 	<root level="WARN">
 		<appender-ref ref="CONSOLE" />
