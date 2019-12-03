@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package example;
+
+option java_package = "com.github.phisgr.pb.complex";
+option java_multiple_files = true;
+
+import "scalapb/scalapb.proto";
+
+message Foo {
+    repeated Bar bar = 1;
+    map<string, Bar> bar_map = 2;
+    repeated Bar bar_set = 3 [(scalapb.field).collection_type="Set"];
+}
+
+message Bar {
+    int32 baz = 1;
+}

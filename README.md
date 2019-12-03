@@ -41,7 +41,7 @@ along with the two required by Gatling.
 libraryDependencies ++= Seq(
   "io.gatling.highcharts" % "gatling-charts-highcharts" % gatlingVersion % "test",
   "io.gatling" % "gatling-test-framework" % gatlingVersion % "test",
-  "com.github.phisgr" %% "gatling-grpc" % "0.6.0" % "test"
+  "com.github.phisgr" %% "gatling-grpc" % "0.7.0" % "test"
 )
 enablePlugins(GatlingPlugin)
 ```
@@ -74,6 +74,12 @@ exec(
 For a complete demo and various examples,
 see [`GrpcExample` in test](src/test/scala/com/github/phisgr/example/GrpcExample.scala).
 
+### Logging
+In [`logback.xml`](https://gatling.io/docs/current/general/debugging/#logback), add  
+`<logger name="com.github.phisgr.gatling.grpc" level="DEBUG" />`  
+to log the requests and responses that are failed (KO in Gatling)
+and with a non-OK gRPC status code.
+
 ## A word on Scala
 
 I hope this library, like the main Gatling framework,
@@ -98,6 +104,11 @@ by separating the arguments into two argument lists.
 
 ## Changelog
 
+#### 0.7.0
+Logs failed requests with a non-OK status code.
+Adds `Expression` versions of Lens extension methods.
+Upgrades versions.
+
 #### 0.6.0
 Adds `target` for connections to different endpoints
 different from the value specified in `protocols`.
@@ -108,7 +119,7 @@ Upgrades to Gatling 3.2.0.
 Fixed the duplicated "extraction crashed" in error messages.
 
 #### 0.4.1
-The `Expressions` created with `updateExpr` should be faster.
+The `Expression`s created with `updateExpr` should be faster.
 
 #### 0.4.0
 Uses the `RequestAction`,
@@ -134,5 +145,5 @@ But the old one is still kept for more flexibility.
 
 ## Development
 
-`sbt clean coverage gatling:test coverageReport` for a coverage report.  
+`sbt clean coverage test gatling:test coverageReport` for a coverage report.  
 `sbt bench/clean 'bench/jmh:run -i 10 -wi 5 -f1 -t1'` for JMH tests.
