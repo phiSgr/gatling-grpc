@@ -71,6 +71,22 @@ exec(
 )
 ```
 
+In order to feed data to grpc services and objects, you use the gatling session object, expressions and lenses. Expressions are specific to gatling-grpc.
+
+```scala
+grpc("Use session")
+.rpc(GreetServiceGrpc.METHOD_GREET)
+.payload(
+  HelloWorld.defaultInstance.updateExpr(
+    _.name :~ $("s"),   // extracts variable 's' from the session. The $ function is actually an expression
+    _.username :~ $("username") // extracts variable 'username'
+  )
+)
+```
+The [:~](src/main/scala/com/github/phisgr/gatling/pb/package.scala) function is a lens to modify grpc objects during a simulation. In the same source file, there are corresponding functions to manipulate more complex grpc objects like lists or maps.
+
+It's possible to get the result from a grpc call and store it in the session for subsequent calls.
+
 For a complete demo and various examples,
 see [`GrpcExample` in test](src/test/scala/com/github/phisgr/example/GrpcExample.scala).
 
