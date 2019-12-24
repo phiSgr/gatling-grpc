@@ -10,7 +10,7 @@ One have to create a lambda and maybe use for-comprehensions
 whenever an expression is required.
 
 I asked myself if I could, but didn't stop to think if I should.
-So this one-file library was created to help combining
+So this two-file library was created to help combining
 expressions with Java Protobuf messages.
 
 This is not included in the Gatling-gRPC library to avoid confusion.
@@ -21,7 +21,7 @@ Below is copied from the test in `bench`.
 
 ```scala
 private val ComplexExprJava: Expression[Test.ComplexMessage] =
-  Test.ComplexMessage.getDefaultInstance.updateWith[Test.ComplexMessage.Builder]
+  Test.ComplexMessage.getDefaultInstance
     .update(_.getMBuilder.setS)($("name"))
     .update(_.setI)($("count"))
 ```
@@ -36,6 +36,8 @@ a message type and its builder class.
 Their relationship exists only in the return type
 of the overridden `toBuilder`.
 
-Therefore I cannot make the Scala compiler infer `A.Builder` from `A`.
-Maybe this can be accomplished with some macro,
-but I have no experience with that.
+I managed to use macros to help the inference,
+and made an Intellij Scala Plugin Extension.
+There are not much documentation on the two
+so I may have made some mistakes.
+Please let me know if you see how things can be improved.

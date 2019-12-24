@@ -55,14 +55,12 @@ package object javapb {
 
   type BuilderOf[M <: Message] = {def build(): M}
 
-  implicit class ExprUpdatable[M <: Message](val e: Expression[M]) extends AnyVal {
-    /**
-      * @tparam B is M.Builder, unfortunately it cannot be inferred
-      * @return an updater, which can be implicitly converted to an Expression[M]
-      */
-    def updateWith[B <: Message.Builder with BuilderOf[M]] = new MessageExpressionUpdater[M, B](e, Nil)
-  }
+  implicit def message2ExprUpdater[M <: Message, B <: Message.Builder with BuilderOf[M]](e: M)(implicit evidence: BuilderEvidence[M, B]): MessageExpressionUpdater[M, B] =
+    expr2exprUpdater(value2Expression(e))
 
-  implicit def value2ExprMessage[M <: Message](e: M): ExprUpdatable[M] = new ExprUpdatable(value2Expression(e))
+  implicit def expr2exprUpdater[M <: Message, B <: Message.Builder with BuilderOf[M]](e: Expression[M])(implicit evidence: BuilderEvidence[M, B]): MessageExpressionUpdater[M, B] =
+    new MessageExpressionUpdater[M, B](e, Nil)
+
+  implicit def builderEvidence[M <: Message, B]: BuilderEvidence[M, B] = macro BuilderEvidence.impl[M, B]
 
 }

@@ -52,7 +52,7 @@ object TestUpdateExpr {
   )
 
   private val SimpleExprJava: Expression[Test.SimpleMessage] =
-    Test.SimpleMessage.getDefaultInstance.updateWith[Test.SimpleMessage.Builder]
+    Test.SimpleMessage.getDefaultInstance
       .update(_.setS)($("name"))
 
   private val SimpleExprJavaLambda: Expression[Test.SimpleMessage] = { s: Session =>
@@ -71,7 +71,7 @@ object TestUpdateExpr {
   )
 
   private val ComplexExprJava: Expression[Test.ComplexMessage] =
-    Test.ComplexMessage.getDefaultInstance.updateWith[Test.ComplexMessage.Builder]
+    Test.ComplexMessage.getDefaultInstance
       .update(_.getMBuilder.setS)($("name"))
       .update(_.setI)($("count"))
 

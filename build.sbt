@@ -45,18 +45,35 @@ lazy val root = (project in file("."))
     ),
   )
 
+val gatlingJavaPbVersion = "1.0.0"
 lazy val javaPb = (project in file("java-pb"))
   .settings(commonSettings: _*)
   .settings(publishSettings: _*)
   .settings(
     name := "gatling-javapb",
-    version := "0.0.0",
+    version := gatlingJavaPbVersion,
     libraryDependencies ++= Seq(
       "com.google.protobuf" % "protobuf-java" % "3.9.1",
       gatlingCore,
     ),
-    scalacOptions += "-language:implicitConversions",
+    scalacOptions ++= Seq(
+      "-language:implicitConversions",
+      "-language:experimental.macros",
+    ),
   )
+
+lazy val javaPbIjExt = (project in file("java-pb-intellij"))
+  .settings(commonSettings: _*)
+  .settings(publishSettings: _*)
+  .settings(
+    name := "gatling-javapb-ijext",
+    ideaPluginName in ThisBuild := "gatling-javapb-ijext",
+    ideaBuild in ThisBuild := "193.3519.25",
+    version := gatlingJavaPbVersion,
+    ideaInternalPlugins += "java",
+    ideaExternalPlugins += "org.intellij.scala".toPlugin,
+  )
+  .enablePlugins(SbtIdeaPlugin)
 
 lazy val bench = (project in file("bench"))
   .dependsOn(root, javaPb)

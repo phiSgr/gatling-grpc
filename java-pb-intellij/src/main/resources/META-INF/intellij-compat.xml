@@ -1,0 +1,15 @@
+<!DOCTYPE intellij-compat PUBLIC "Plugin/DTD"
+        "https://raw.githubusercontent.com/JetBrains/intellij-scala/idea183.x/scala/scala-impl/src/org/jetbrains/plugins/scala/components/libextensions/intellij-compat.dtd">
+
+<intellij-compat>
+    <name>Gatling-JavaPB support</name>
+    <description>This provides type inference for Message.Builder macro</description>
+    <version>1.0.0</version>
+    <vendor>George Leung</vendor>
+    <ideaVersion since-build="2018.1.0" until-build="2019.4.0">
+        <extension interface="org.jetbrains.plugins.scala.lang.macros.evaluator.ScalaMacroTypeable"
+                   implementation="com.github.phisgr.gatling.javapbintellij.MessageBuilderTyper">
+            <description>Support for Message.Builder macro</description>
+        </extension>
+    </ideaVersion>
+</intellij-compat>
