@@ -47,8 +47,8 @@ exec(
 )
 ```
 
-For a complete demo and various examples,
-see [`GrpcExample` in test](src/test/scala/com/github/phisgr/example/GrpcExample.scala).
+__For a complete demo and various examples (including the proper syntax to include a variable from a feeder),
+see [`GrpcExample` in test](src/test/scala/com/github/phisgr/example/GrpcExample.scala).__
 
 ### Dynamic Payload
 There are helper methods in `gatling-grpc` for
