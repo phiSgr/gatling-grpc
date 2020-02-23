@@ -1,5 +1,6 @@
 package com.github.phisgr.gatling
 
+import io.gatling.commons.validation.{Failure, Success, Validation}
 import io.gatling.core.Predef.value2Expression
 import io.gatling.core.session._
 import scalapb.lenses.Lens._
@@ -21,6 +22,7 @@ package object pb {
     def :++~(e: Expression[GenTraversableOnce[B]]): Expression[Mutation[A]] = ll :++~ e
     def foreachExpr(f: Lens[B, B] => Expression[Mutation[B]]): Expression[Mutation[A]] = ll.foreachExpr(f)
   }
+
   implicit class EpxrSeqLikeLens[A, B, Coll[B] <: collection.SeqLike[B, Coll[B]]](
     val l: Lens[A, Coll[B]]
   ) extends AnyVal {
@@ -33,6 +35,7 @@ package object pb {
     def foreachExpr(f: Lens[B, B] => Expression[Mutation[B]])(implicit cbf: CBF): Expression[Mutation[A]] =
       f(Lens.unit).map(m => l.foreach(_ => m))
   }
+
   implicit class EpxrSetLens[A, B, Coll[B] <: collection.SetLike[B, Coll[B]] with Set[B]](
     val l: Lens[A, Coll[B]]
   ) extends AnyVal {
@@ -45,6 +48,7 @@ package object pb {
     def foreachExpr(f: Lens[B, B] => Expression[Mutation[B]])(implicit cbf: CBF): Expression[Mutation[A]] =
       f(Lens.unit).map(m => l.foreach(_ => m))
   }
+
   implicit class EpxrMapLens[A, K, V](
     val l: Lens[A, Map[K, V]]
   ) extends AnyVal {
@@ -60,15 +64,32 @@ package object pb {
 
   implicit class ExprUpdatable[A <: Updatable[A]](val e: Expression[A]) extends AnyVal {
     def updateExpr(mEs: (Lens[A, A] => Expression[Mutation[A]])*): Expression[A] = {
-      val mutationExprs = mEs.map(_.apply(Lens.unit))
+      val mutationExprs = mEs.map(_.apply(Lens.unit)).toArray
+      val size = mutationExprs.length
 
-      s =>
-        mutationExprs.foldLeft(e(s)) { (aVal, mExpr) =>
-          for {
-            a <- aVal
-            m <- mExpr(s)
-          } yield m(a)
+      { s =>
+        e(s) match {
+          case Success(a) =>
+            var result = a
+            var i = 0
+            var ret: Validation[A] = null
+            do {
+              if (i < size) {
+                mutationExprs(i)(s) match {
+                  case Success(mutation) =>
+                    result = mutation(result)
+                    i += 1
+                  case f@Failure(_) =>
+                    ret = f
+                }
+              } else {
+                ret = Success(result)
+              }
+            } while (ret eq null)
+            ret
+          case f@Failure(_) => f
         }
+      }
     }
   }
 

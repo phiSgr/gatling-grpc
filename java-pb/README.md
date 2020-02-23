@@ -17,7 +17,15 @@ This is not included in the Gatling-gRPC library to avoid confusion.
 
 ## Usage
 
-Below is copied from the test in `bench`.
+Assuming you're using
+[Gatling with Gradle](https://github.com/lkishalmi/gradle-gatling-plugin),
+add this line to the `dependencies`.  
+`gatling 'com.github.phisgr:gatling-javapb_2.12:1.0.0'`
+
+Below is copied from the test in
+[`bench`](../bench/src/main/scala/com/github/phisgr/gatling/pb/bench/TestUpdateExpr.scala).
+For the `.update` extension method to work,
+you need to `import com.github.phisgr.gatling.javapb._`.
 
 ```scala
 private val ComplexExprJava: Expression[Test.ComplexMessage] =

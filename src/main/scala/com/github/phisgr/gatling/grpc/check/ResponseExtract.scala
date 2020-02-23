@@ -1,10 +1,8 @@
 package com.github.phisgr.gatling.grpc.check
 
-import io.gatling.commons.validation.{FailureWrapper, SuccessWrapper, safely}
+import io.gatling.commons.validation.{SuccessWrapper, safely}
 import io.gatling.core.check._
-import io.gatling.core.session.ExpressionSuccessWrapper
-
-import scala.util.{Failure, Success, Try}
+import io.gatling.core.session.{Expression, ExpressionSuccessWrapper}
 
 private[gatling] object ResponseExtract {
 
@@ -24,48 +22,46 @@ private[gatling] object ResponseExtract {
     override val arity = "find"
   }
 
-  def extract[T, X](f: T => Option[X]) = ValidatorCheckBuilder[ResponseExtract, T, X](
+  def extract[T, X](f: T => Option[X]): ValidatorCheckBuilder[ResponseExtract, T, X] = ValidatorCheckBuilder(
     displayActualValue = true,
     extractor = SingleExtractor(f).expressionSuccess
   )
 
-  def extractMultiple[T, X](f: T => Option[Seq[X]]) = new DefaultMultipleFindCheckBuilder[ResponseExtract, T, X](
-    displayActualValue = true
-  ) {
-    override def findExtractor(occurrence: Int) = new ResponseExtractor[T, X] {
-      override def extract(prepared: T): Option[X] = f(prepared).flatMap(s =>
-        if (s.isDefinedAt(occurrence)) Some(s(occurrence)) else None
-      )
+  def extractMultiple[T, X](f: T => Option[Seq[X]]): DefaultMultipleFindCheckBuilder[ResponseExtract, T, X] =
+    new DefaultMultipleFindCheckBuilder[ResponseExtract, T, X](
+      displayActualValue = true
+    ) {
+      override def findExtractor(occurrence: Int): Expression[ResponseExtractor[T, X]] =
+        new ResponseExtractor[T, X] {
+          override def extract(prepared: T): Option[X] = f(prepared).flatMap(s =>
+            if (s.isDefinedAt(occurrence)) Some(s(occurrence)) else None
+          )
 
-      // Since the arity traits got fused into the CriterionExtractors
-      // and our criteria are functions that do not look good in string
-      // I have no choice but to write them manually
-      override val arity: String = if (occurrence == 0) "find" else s"find($occurrence)"
-    }.expressionSuccess
+          // Since the arity traits got fused into the CriterionExtractors
+          // and our criteria are functions that do not look good in string
+          // I have no choice but to write them manually
+          override val arity: String = if (occurrence == 0) "find" else s"find($occurrence)"
+        }.expressionSuccess
 
-    override def findAllExtractor = new ResponseExtractor[T, Seq[X]] {
-      override def extract(prepared: T): Option[Seq[X]] = f(prepared)
+      override def findAllExtractor: Expression[ResponseExtractor[T, Seq[X]]] =
+        new ResponseExtractor[T, Seq[X]] {
+          override def extract(prepared: T): Option[Seq[X]] = f(prepared)
+          override val arity = "findAll"
+        }.expressionSuccess
 
-      override val arity = "findAll"
-    }.expressionSuccess
-
-    override def countExtractor = new ResponseExtractor[T, Int] {
-      override def extract(prepared: T): Option[Int] = f(prepared).map(_.size)
-
-      override val arity = "count"
-    }.expressionSuccess
-  }
-
-  def materializer[Res] = new CheckMaterializer[ResponseExtract, GrpcCheck[Res], Try[Res], Res](
-    specializer = GrpcCheck(_, GrpcCheck.Value)
-  ) {
-    override protected def preparer: Preparer[Try[Res], Res] = {
-      case Success(a) => a.success
-      case Failure(e) => e.getMessage.failure
+      override def countExtractor: Expression[ResponseExtractor[T, Int]] =
+        new ResponseExtractor[T, Int] {
+          override def extract(prepared: T): Option[Int] = f(prepared).map(_.size)
+          override val arity = "count"
+        }.expressionSuccess
     }
 
-  }
-
+  def materializer[Res]: CheckMaterializer[ResponseExtract, GrpcCheck[Res], GrpcResponse[Res], Res] =
+    new CheckMaterializer[ResponseExtract, GrpcCheck[Res], GrpcResponse[Res], Res](
+      specializer = GrpcCheck(_, GrpcCheck.Value)
+    ) {
+      override protected def preparer: Preparer[GrpcResponse[Res], Res] = _.validation
+    }
 }
 
 // phantom type for implicit materializer resolution

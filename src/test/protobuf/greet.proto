@@ -3,7 +3,6 @@ syntax = "proto3";
 package example;
 
 option java_package = "com.github.phisgr.example";
-option java_multiple_files = true;
 
 message HelloWorld {
     string username = 1;
@@ -22,6 +21,10 @@ message RegisterRequest {
 message RegisterResponse {
     string username = 1;
     string token = 2;
+}
+
+message CustomError {
+    string message = 1;
 }
 
 service GreetService {

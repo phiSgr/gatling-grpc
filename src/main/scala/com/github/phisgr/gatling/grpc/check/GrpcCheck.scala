@@ -1,15 +1,15 @@
 package com.github.phisgr.gatling.grpc.check
 
+import java.util.{Map => JMap}
+
 import com.github.phisgr.gatling.grpc.check.GrpcCheck.{Scope, Status}
 import io.gatling.core.check.Check
 import io.gatling.core.session.Session
-import java.util.{Map => JMap}
 
 import scala.annotation.unchecked.uncheckedVariance
-import scala.util.Try
 
-case class GrpcCheck[-T](wrapped: Check[Try[T]@uncheckedVariance], scope: Scope) extends Check[Try[T]@uncheckedVariance] {
-  override def check(response: Try[T], session: Session, cache: JMap[Any, Any]) =
+case class GrpcCheck[-T](wrapped: Check[GrpcResponse[T]@uncheckedVariance], scope: Scope) extends Check[GrpcResponse[T]@uncheckedVariance] {
+  override def check(response: GrpcResponse[T], session: Session, cache: JMap[Any, Any]) =
     wrapped.check(response, session, cache)
 
   def checksStatus = scope == Status
@@ -22,5 +22,7 @@ object GrpcCheck {
   case object Status extends Scope
 
   case object Value extends Scope
+
+  case object Trailers extends Scope
 
 }

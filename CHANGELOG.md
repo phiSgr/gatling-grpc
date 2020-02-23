@@ -1,3 +1,22 @@
+#### 0.8.0
+This release contains structural changes
+that are a step closer to supporting streaming APIs.
+
+As things got moved around, you may need to check your imports.
+
+New functionalities:
+- Warm up call to force the class-loading. By default the call is a
+[health check](https://github.com/grpc/grpc/blob/master/src/proto/grpc/health/v1/health.proto).
+- Specification of call options.
+- Trailer extraction.
+- Improved logging.
+
+Improved performance:
+- Use while loop to implement `foldM`-like manipulation.
+  - Performance of dynamic payload creation with ScalaPB lenses
+  is now comparable to using [Gatling-JavaPB](java-pb).
+- Removed the use of futures in `GrpcCallAction`.
+
 #### 0.7.0
 Logs failed requests with a non-OK status code.
 Adds `Expression` versions of Lens extension methods.

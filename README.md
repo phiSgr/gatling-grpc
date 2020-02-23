@@ -17,7 +17,7 @@ along with the two required by Gatling.
 libraryDependencies ++= Seq(
   "io.gatling.highcharts" % "gatling-charts-highcharts" % gatlingVersion % "test",
   "io.gatling" % "gatling-test-framework" % gatlingVersion % "test",
-  "com.github.phisgr" %% "gatling-grpc" % "0.7.0" % "test"
+  "com.github.phisgr" %% "gatling-grpc" % "0.8.0" % "test"
 )
 enablePlugins(GatlingPlugin)
 ```
@@ -47,21 +47,27 @@ exec(
 )
 ```
 
-__For a complete demo and various examples (including the proper syntax to include a variable from a feeder),
+__For a complete demo and various examples
+including the proper syntax to include
+[session attributes](https://gatling.io/docs/current/session/session_api/)
+(e.g. from a feeder, or saved in a check),
 see [`GrpcExample` in test](src/test/scala/com/github/phisgr/example/GrpcExample.scala).__
 
 ### Dynamic Payload
 There are helper methods in `gatling-grpc` for
 generating dynamic ScalaPB objects with `Lens`es,
 as demonstrated in the example linked above.
+It makes uses of [extension methods](https://docs.scala-lang.org/overviews/core/implicit-classes.html),
+and requires importing `com.github.phisgr.gatling.pb._`.
+
 If you want to use Java Protobuf classes,
 you can use the [`gatling-javapb`](java-pb) library.
 
 ### Logging
 In [`logback.xml`](https://gatling.io/docs/current/general/debugging/#logback), add  
 `<logger name="com.github.phisgr.gatling.grpc" level="DEBUG" />`  
-to log the requests and responses that are failed (KO in Gatling)
-and with a non-OK gRPC status code.
+to log the requests that are failed;
+or set the `level` to `TRACE` to log all gRPC requests.
 
 ## Development
 

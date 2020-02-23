@@ -1,13 +1,13 @@
 package com.github.phisgr.gatling.grpc.action
 
-import com.github.phisgr.gatling.grpc.HeaderPair
-import com.github.phisgr.gatling.grpc.check.StatusExtract
+import com.github.phisgr.gatling.grpc.ClientCalls
+import com.github.phisgr.gatling.grpc.check.{GrpcResponse, StatusExtract}
 import com.github.phisgr.gatling.grpc.protocol.GrpcProtocol
-import com.github.phisgr.gatling.util.GrpcStringBuilder
+import com.github.phisgr.gatling.grpc.util.GrpcStringBuilder
 import io.gatling.commons.stats.{KO, OK}
 import io.gatling.commons.util.Clock
 import io.gatling.commons.util.StringHelper.Eol
-import io.gatling.commons.validation.{Failure, Success, SuccessWrapper, Validation}
+import io.gatling.commons.validation.{SuccessWrapper, Validation}
 import io.gatling.core.action.{Action, RequestAction}
 import io.gatling.core.check.Check
 import io.gatling.core.session.{Expression, Session}
@@ -16,10 +16,6 @@ import io.gatling.core.structure.ScenarioContext
 import io.gatling.core.util.NameGen
 import io.gatling.netty.util.StringBuilderPool
 import io.grpc._
-import io.grpc.stub.MetadataUtils
-
-import scala.concurrent.ExecutionContext
-import scala.util
 
 case class GrpcCallAction[Req, Res](
   builder: GrpcCallActionBuilder[Req, Res],
@@ -39,18 +35,115 @@ case class GrpcCallAction[Req, Res](
     ctx.protocolComponentsRegistry.components(protocolKey)
   }
 
-  private def run(channel: Channel, payload: Req, session: Session, resolvedRequestName: String): Unit = {
-    implicit val ec: ExecutionContext = ctx.coreComponents.actorSystem.dispatcher
+  private val resolvedChecks = if (builder.checks.exists(_.checksStatus)) builder.checks else {
+    StatusExtract.DefaultCheck :: builder.checks
+  }
 
-    val start = clock.nowMillis
-    builder.method(channel)(payload).onComplete { t =>
-      val endTimestamp = clock.nowMillis
+  private val dispatcher = ctx.coreComponents.actorSystem.dispatcher
 
-      val resolvedChecks = if (builder.checks.exists(_.checksStatus)) builder.checks else {
-        StatusExtract.DefaultCheck :: builder.checks
+  private def run(
+    channel: Channel,
+    payload: Req,
+    session: Session,
+    resolvedRequestName: String,
+    callOptions: CallOptions,
+    headers: Metadata
+  ): Unit = {
+    val call = channel.newCall(builder.method, callOptions)
+    ClientCalls.unaryCall(
+      call, headers, payload,
+      new ContinuingListener(session, resolvedRequestName, clock.nowMillis, headers, payload)
+    )
+  }
+
+  private val headerPairs = builder.reversedHeaders.reverse.toArray
+  private def resolveHeaders(session: Session): Validation[Metadata] = {
+    val md = new Metadata()
+    val size = headerPairs.length
+    var i = 0
+    while (i < size) {
+      val failure = headerPairs(i).mutateMetadata(session, md)
+      if (failure ne null) return failure
+      i += 1
+    }
+    md.success
+  }
+
+  override def sendRequest(requestName: String, session: Session): Validation[Unit] = {
+    for {
+      headers <- resolveHeaders(session)
+      resolvedPayload <- builder.payload(session)
+      callOptions <- builder.callOptions(session)
+    } yield {
+      val channel = component.getChannel(session)
+      if (ctx.throttled) {
+        ctx.coreComponents.throttler.throttle(session.scenario, () =>
+          run(channel, resolvedPayload, session, resolvedRequestName = requestName, callOptions, headers)
+        )
+      } else {
+        run(channel, resolvedPayload, session, resolvedRequestName = requestName, callOptions, headers)
       }
-      // Not using preparedCache because the prepare step is cheap
-      val (checkSaveUpdated, checkError) = Check.check(t, session, resolvedChecks, preparedCache = null)
+    }
+  }
+
+  /**
+   * After the call ends, [[onClose]] will be called,
+   * then the execution will continue at [[run]] in the Akka dispatcher
+   * and finally forward to the next action.
+   *
+   * See [[io.grpc.stub.ClientCalls.UnaryStreamToFuture]]
+   *
+   * The headers object is read for logging after ClientCall.start. This is supposedly not safe.
+   * We are accessing it after the call closed, so let's hope nothing bad happens.
+   *
+   * @param session         the virtual user
+   * @param fullRequestName the resolved request name
+   * @param startTimestamp  start of the call
+   * @param headers         for logging
+   * @param payload         for logging
+   */
+  class ContinuingListener(
+    session: Session,
+    fullRequestName: String,
+    startTimestamp: Long,
+    headers: Metadata,
+    payload: Req
+  ) extends ClientCall.Listener[Res] with Runnable {
+    private var body: Res = _
+    private var grpcStatus: Status = _
+    private var trailers: Metadata = _
+    private var endTimestamp = 0L
+
+    override def onHeaders(headers: Metadata): Unit = {}
+
+    override def onMessage(message: Res): Unit = {
+      if (null != body) {
+        throw Status.INTERNAL
+          .withDescription("More than one value received for unary call")
+          .asRuntimeException
+      }
+      this.body = message
+    }
+
+    override def onClose(status: Status, trailers: Metadata): Unit = {
+      endTimestamp = clock.nowMillis
+      this.trailers = trailers
+      grpcStatus = if (status.isOk && null == body) {
+        Status.INTERNAL.withDescription("No value received for unary call")
+      } else {
+        status
+      }
+      // run() in Akka threads
+      dispatcher.execute(this)
+    }
+
+    override def run(): Unit = {
+      val (checkSaveUpdated, checkError) = Check.check(
+        GrpcResponse(body, grpcStatus, trailers),
+        session,
+        resolvedChecks,
+        preparedCache = null
+      )
 
       val (status, newSession) = if (checkError.isEmpty) {
         (OK, checkSaveUpdated)
@@ -61,70 +154,44 @@ case class GrpcCallAction[Req, Res](
       val errorMessage = checkError.map(_.message)
       statsEngine.logResponse(
         newSession,
-        resolvedRequestName,
-        startTimestamp = start,
+        fullRequestName,
+        startTimestamp = startTimestamp,
         endTimestamp = endTimestamp,
         status = status,
-        responseCode = StatusExtract.extractStatus(t) match {
-          case Success(value) => Some(value.getCode.toString)
-          case Failure(_) => None
-        },
+        responseCode = Some(grpcStatus.getCode.toString),
         message = errorMessage
       )
-      // TODO: log gRPC request after disallowing arbitrary functions by using old API
-      if (status == KO && logger.underlying.isDebugEnabled) {
-        (t match {
-          case util.Failure(e: StatusException) => Some(e.getStatus -> e.getTrailers)
-          case util.Failure(e: StatusRuntimeException) => Some(e.getStatus -> e.getTrailers)
-          case _ => None
-        }).foreach { case (status, trailers) =>
-          logger.debug(
-            StringBuilderPool.DEFAULT
-              .get()
-              .append(Eol)
-              .appendWithEol(">>>>>>>>>>>>>>>>>>>>>>>>>>")
-              .appendWithEol("Request:")
-              .appendWithEol(s"$resolvedRequestName: KO ${errorMessage.getOrElse("")}")
-              .appendWithEol("=========================")
-              .appendWithEol("Session:")
-              .appendWithEol(session)
-              .appendWithEol("=========================")
-              .appendWithEol("gRPC response:")
-              .appendStatus(status)
-              .appendTrailers(trailers)
-              .append("<<<<<<<<<<<<<<<<<<<<<<<<<")
-              .toString
-          )
+
+      def dump = {
+        StringBuilderPool.DEFAULT
+          .get()
+          .append(Eol)
+          .appendWithEol(">>>>>>>>>>>>>>>>>>>>>>>>>>")
+          .appendWithEol("Request:")
+          .appendWithEol(s"$fullRequestName: $status ${errorMessage.getOrElse("")}")
+          .appendWithEol("=========================")
+          .appendWithEol("Session:")
+          .appendWithEol(session)
+          .appendWithEol("=========================")
+          .appendWithEol("gRPC request:")
+          .appendRequest(payload, headers)
+          .appendWithEol("=========================")
+          .appendWithEol("gRPC response:")
+          .appendResponse(body, grpcStatus, trailers)
+          .append("<<<<<<<<<<<<<<<<<<<<<<<<<")
+          .toString
+      }
+
+      if (status == KO) {
+        logger.info(s"Request '$fullRequestName' failed for user ${session.userId}: ${errorMessage.getOrElse("")}")
+        if (!logger.underlying.isTraceEnabled) {
+          logger.debug(dump)
         }
       }
+      logger.trace(dump)
+
       next ! newSession
     }
   }
 
-  override def sendRequest(requestName: String, session: Session): Validation[Unit] = {
-    type ResolvedH = (Metadata.Key[T], T) forSome {type T}
-    for {
-      resolvedHeaders <- builder.headers.foldLeft[Validation[List[ResolvedH]]](Nil.success) { case (lV, HeaderPair(key, value)) =>
-        for {
-          l <- lV
-          resolvedValue <- value(session)
-        } yield (key, resolvedValue) :: l
-      }
-      resolvedPayload <- builder.payload(session)
-    } yield {
-      val rawChannel = component.getChannel(session)
-      val channel = if (resolvedHeaders.isEmpty) rawChannel else {
-        val headers = new Metadata()
-        resolvedHeaders.foreach { case (key, value) => headers.put(key, value) }
-        ClientInterceptors.intercept(rawChannel, MetadataUtils.newAttachHeadersInterceptor(headers))
-      }
-      if (ctx.throttled) {
-        ctx.coreComponents.throttler.throttle(session.scenario, () =>
-          run(channel, resolvedPayload, session, resolvedRequestName = requestName)
-        )
-      } else {
-        run(channel, resolvedPayload, session, resolvedRequestName = requestName)
-      }
-    }
-  }
 }

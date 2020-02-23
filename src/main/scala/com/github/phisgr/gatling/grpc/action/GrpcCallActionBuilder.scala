@@ -3,28 +3,43 @@ package com.github.phisgr.gatling.grpc.action
 import com.github.phisgr.gatling.grpc.HeaderPair
 import com.github.phisgr.gatling.grpc.check.{GrpcCheck, ResponseExtract}
 import com.github.phisgr.gatling.grpc.protocol.GrpcProtocol
+import io.gatling.commons.validation.Success
 import io.gatling.core.action.Action
 import io.gatling.core.action.builder.ActionBuilder
 import io.gatling.core.check.{MultipleFindCheckBuilder, ValidatorCheckBuilder}
-import io.gatling.core.session.Expression
+import io.gatling.core.session.{Expression, Session}
 import io.gatling.core.structure.ScenarioContext
-import io.grpc.{Channel, Metadata}
+import io.grpc.{CallOptions, Metadata, MethodDescriptor}
 
 import scala.collection.breakOut
-import scala.concurrent.Future
 
 case class GrpcCallActionBuilder[Req, Res](
   requestName: Expression[String],
-  method: Channel => Req => Future[Res],
+  method: MethodDescriptor[Req, Res],
   payload: Expression[Req],
-  headers: List[HeaderPair[_]] = Nil,
+  callOptions: Expression[CallOptions],
+  reversedHeaders: List[HeaderPair[_]] = Nil,
   checks: List[GrpcCheck[Res]] = Nil,
   protocolOverride: Option[GrpcProtocol] = None
 ) extends ActionBuilder {
   override def build(ctx: ScenarioContext, next: Action): Action = GrpcCallAction(this, ctx, next)
 
+  def callOptions(callOptions: Expression[CallOptions]) = copy(
+    callOptions = callOptions
+  )
+
+  /**
+   * Sets call options of the call.
+   *
+   * @param callOptions is a call-by-name param, it will be run every time the call is executed.
+   * @return a new GrpcCallActionBuilder
+   */
+  def callOptions(callOptions: => CallOptions) = copy(
+    callOptions = { _: Session => Success(callOptions) }
+  )
+
   def header[T](key: Metadata.Key[T])(value: Expression[T]) = copy(
-    headers = HeaderPair(key, value) :: headers
+    reversedHeaders = HeaderPair(key, value) :: reversedHeaders
   )
 
   private def mapToList[T, U](s: Seq[T])(f: T => U) = s.map[U, List[U]](f)(breakOut)

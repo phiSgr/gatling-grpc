@@ -1,10 +1,9 @@
 package com.github.phisgr.example
 
-import com.github.phisgr.example.greet.{ChatMessage, GreetServiceGrpc, HelloWorld, RegisterRequest}
-import com.github.phisgr.example.util.TokenHeaderKey
+import com.github.phisgr.example.greet._
+import com.github.phisgr.example.util._
 import com.github.phisgr.gatling.grpc.Predef._
 import com.github.phisgr.gatling.pb._
-import com.github.phisgr.gatling.util._
 // stringToExpression is hidden because we have $ in GrpcDsl
 import io.gatling.core.Predef.{stringToExpression => _, _}
 import io.gatling.core.session.Expression
@@ -15,6 +14,7 @@ class GrpcExample extends Simulation {
   TestServer.startEmptyServer()
 
   val grpcConf = grpc(ManagedChannelBuilder.forAddress("localhost", 8080).usePlaintext())
+    .warmUpCall(GreetServiceGrpc.METHOD_GREET, HelloWorld.defaultInstance)
   val emptyGrpc = grpc(ManagedChannelBuilder.forAddress("localhost", 9999).usePlaintext())
 
   val helloWorld: Expression[HelloWorld] = HelloWorld(name = "World").updateExpr(
@@ -55,16 +55,14 @@ class GrpcExample extends Simulation {
           // but the extraction functions need type annotation
           // so .extract and .extractMultiple are added to GrpcCallActionBuilder, see below
           extract { c: ChatMessage => c.username.some },
-          extractMultiple { c: ChatMessage => c.data.split(' ').toSeq.some }.find(5)
+          extractMultiple { c: ChatMessage => c.data.split(' ').toSeq.some }
         )
     )
     .exec(
-      grpc("Cannot Build, with old API")
-        .service(GreetServiceGrpc.stub)
-        // Session attribute "s" is a String (see line 28),
-        // but we need a HelloWorld here.
-        // Note that we do not need to supply the type parameter, it is just here for clarity
-        .rpc(_.greet)($[HelloWorld]("s"))
+      grpc("Cannot Build, with header not found")
+        .rpc(GreetServiceGrpc.METHOD_GREET)
+        .payload(HelloWorld.defaultInstance)
+        .header(TokenHeaderKey)($("notDefined"))
     )
     .repeat(1000) {
       exec(successfulCall)
@@ -74,7 +72,12 @@ class GrpcExample extends Simulation {
             .payload(helloWorld)
             .check(
               statusCode is Status.Code.UNAUTHENTICATED,
-              statusDescription.notExists
+              statusDescription.notExists,
+              trailer(ErrorResponseKey) is CustomError("You are not authenticated!"),
+              trailer(ErrorResponseKey).find(1).notExists,
+              trailer(ErrorResponseKey).findAll is List(CustomError("You are not authenticated!")),
+              trailer(ErrorResponseKey).count is 1,
+              trailer(TokenHeaderKey).count is 0
             )
         )
         .exec(
