@@ -11,14 +11,13 @@ import io.grpc.Status.Code._
 // stringToExpression is hidden because we have $ in GrpcDsl
 import io.gatling.core.Predef.{stringToExpression => _, _}
 import io.gatling.core.session.Expression
-import io.grpc.ManagedChannelBuilder
 
 import scala.concurrent.duration._
 
 class ThrottleExample extends Simulation {
   TestServer.startServer()
 
-  val grpcConf = grpc(ManagedChannelBuilder.forAddress("localhost", 8080).usePlaintext())
+  val grpcConf = grpc(managedChannelBuilder(target = "localhost:8080").usePlaintext())
     .shareChannel
     .disableWarmUp
 

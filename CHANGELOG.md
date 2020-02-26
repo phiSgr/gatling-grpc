@@ -1,6 +1,15 @@
+#### 0.8.1
+Added methods named `managedChannelBuilder`. They mean the same as
+`ManagedChannelBuilder.forTarget` or `ManagedChannelBuilder.forAddress`
+but have a return type that is easier for the type inference of IntelliJ.
+In addition, since Gatling-gRPC does not block threads,
+they use the `directExecutor` by default to further improve performance.
+
 #### 0.8.0
 This release contains structural changes
 that are a step closer to supporting streaming APIs.
+Most notably the function-taking API,
+that allows arbitrary Scala code to be run, is gone.
 
 As things got moved around, you may need to check your imports.
 

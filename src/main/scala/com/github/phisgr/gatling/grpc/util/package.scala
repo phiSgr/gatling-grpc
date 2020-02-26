@@ -50,10 +50,10 @@ package object util {
         .append(s.getCode)
       val description = s.getDescription
       if (description ne null) {
-        buff.append(", description: ").appendWithEol(description)
-      } else {
-        buff.append(Eol)
+        buff.append(", description: ").append(description)
       }
+      buff.append(Eol)
+
       val cause = s.getCause
       if (cause ne null) {
         buff.append("cause: ").appendWithEol(cause.toString)

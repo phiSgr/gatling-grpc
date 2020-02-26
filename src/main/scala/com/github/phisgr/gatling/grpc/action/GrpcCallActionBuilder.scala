@@ -7,7 +7,7 @@ import io.gatling.commons.validation.Success
 import io.gatling.core.action.Action
 import io.gatling.core.action.builder.ActionBuilder
 import io.gatling.core.check.{MultipleFindCheckBuilder, ValidatorCheckBuilder}
-import io.gatling.core.session.{Expression, Session}
+import io.gatling.core.session.{Expression, ExpressionSuccessWrapper, Session}
 import io.gatling.core.structure.ScenarioContext
 import io.grpc.{CallOptions, Metadata, MethodDescriptor}
 
@@ -17,7 +17,7 @@ case class GrpcCallActionBuilder[Req, Res](
   requestName: Expression[String],
   method: MethodDescriptor[Req, Res],
   payload: Expression[Req],
-  callOptions: Expression[CallOptions],
+  callOptions: Expression[CallOptions] = CallOptions.DEFAULT.expressionSuccess,
   reversedHeaders: List[HeaderPair[_]] = Nil,
   checks: List[GrpcCheck[Res]] = Nil,
   protocolOverride: Option[GrpcProtocol] = None

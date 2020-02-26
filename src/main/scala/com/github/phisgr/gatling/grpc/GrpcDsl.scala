@@ -6,12 +6,21 @@ import io.gatling.commons.NotNothing
 import io.gatling.commons.validation.{Failure, Success}
 import io.gatling.core.session.Expression
 import io.gatling.core.session.el.ElMessages
-import io.grpc.ManagedChannelBuilder
+import io.grpc.{ManagedChannelBuilder => MCB}
 
 import scala.reflect.ClassTag
 
 trait GrpcDsl {
-  def grpc(channelBuilder: ManagedChannelBuilder[_]) = GrpcProtocol(channelBuilder)
+  // Better type inference for IntelliJ
+  type ManagedChannelBuilder = MCB[T] forSome {type T <: MCB[T]}
+
+  def managedChannelBuilder(target: String): ManagedChannelBuilder =
+    MCB.forTarget(target).asInstanceOf[ManagedChannelBuilder].directExecutor()
+
+  def managedChannelBuilder(name: String, port: Int): ManagedChannelBuilder =
+    MCB.forAddress(name, port).asInstanceOf[ManagedChannelBuilder].directExecutor()
+
+  def grpc(channelBuilder: MCB[_]) = GrpcProtocol(channelBuilder)
 
   def grpc(requestName: Expression[String]) = Grpc(requestName)
 

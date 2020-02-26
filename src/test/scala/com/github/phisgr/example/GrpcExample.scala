@@ -7,15 +7,15 @@ import com.github.phisgr.gatling.pb._
 // stringToExpression is hidden because we have $ in GrpcDsl
 import io.gatling.core.Predef.{stringToExpression => _, _}
 import io.gatling.core.session.Expression
-import io.grpc.{ManagedChannelBuilder, Status}
+import io.grpc.Status
 
 class GrpcExample extends Simulation {
   TestServer.startServer()
   TestServer.startEmptyServer()
 
-  val grpcConf = grpc(ManagedChannelBuilder.forAddress("localhost", 8080).usePlaintext())
+  val grpcConf = grpc(managedChannelBuilder(name = "localhost", port = 8080).usePlaintext())
     .warmUpCall(GreetServiceGrpc.METHOD_GREET, HelloWorld.defaultInstance)
-  val emptyGrpc = grpc(ManagedChannelBuilder.forAddress("localhost", 9999).usePlaintext())
+  val emptyGrpc = grpc(managedChannelBuilder(name = "localhost", port = 9999).usePlaintext())
 
   val helloWorld: Expression[HelloWorld] = HelloWorld(name = "World").updateExpr(
     _.username :~ $("username")

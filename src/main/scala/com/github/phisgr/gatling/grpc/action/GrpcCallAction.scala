@@ -142,6 +142,7 @@ case class GrpcCallAction[Req, Res](
         GrpcResponse(body, grpcStatus, trailers),
         session,
         resolvedChecks,
+        // Not using preparedCache because the prepare step is cheap
         preparedCache = null
       )
 
