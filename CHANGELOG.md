@@ -1,3 +1,7 @@
+#### 0.8.2
+Fix metadata reflection failure.
+Supports silent and group.
+
 #### 0.8.1
 Added methods named `managedChannelBuilder`. They mean the same as
 `ManagedChannelBuilder.forTarget` or `ManagedChannelBuilder.forAddress`
