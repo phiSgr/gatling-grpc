@@ -123,7 +123,7 @@ class LensExprSpec extends FlatSpec with Matchers with StrictLogging {
 
   "Wrong session variables" should "fail" in {
     Bar.defaultInstance.updateExpr(_.baz :~ $("bar"))(session) shouldBe
-      Failure("Value Bar(1) is of type com.github.phisgr.pb.complex.complex.Bar, expected int")
+      Failure("Value Bar(1,UnknownFieldSet(Map())) is of type com.github.phisgr.pb.complex.complex.Bar, expected int")
     Bar.defaultInstance.updateExpr(_.baz :~ $("nonExisting"))(session) shouldBe
       Failure("No attribute named 'nonExisting' is defined")
   }

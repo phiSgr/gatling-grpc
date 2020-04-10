@@ -1,6 +1,5 @@
 package com.github.phisgr.gatling.grpc;
 
-
 import io.grpc.ClientCall;
 import io.grpc.Metadata;
 import io.grpc.stub.ClientCalls;
@@ -26,9 +25,18 @@ public class Reflections {
             metadataName = unreflectMethod(
                     Metadata.class.getDeclaredMethod("name", int.class)
             );
-            metadataValue = unreflectMethod(
-                    Metadata.class.getDeclaredMethod("value", int.class)
-            );
+            MethodHandle value;
+            try {
+                value = unreflectMethod(
+                        Metadata.class.getDeclaredMethod("valueAsBytes", int.class)
+
+                );
+            } catch (NoSuchMethodException e) {
+                value = unreflectMethod(
+                        Metadata.class.getDeclaredMethod("value", int.class)
+                );
+            }
+            metadataValue = value;
         } catch (Throwable e) {
             throw new IllegalStateException(e);
         }
