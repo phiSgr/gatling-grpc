@@ -53,6 +53,10 @@ including the proper syntax to include
 (e.g. from a feeder, or saved in a check),
 see [`GrpcExample` in test](src/test/scala/com/github/phisgr/example/GrpcExample.scala).__
 
+For more complex manipulations with session attributes and protobuf objects,
+like repeated fields and map fields,
+see [the unit test](src/test/scala/com/github/phisgr/gatling/pb/LensExprSpec.scala).
+
 ### Dynamic Payload
 There are helper methods in `gatling-grpc` for
 generating dynamic ScalaPB objects with `Lens`es,
