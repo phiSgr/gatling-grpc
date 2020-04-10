@@ -67,11 +67,11 @@ lazy val javaPbIjExt = (project in file("java-pb-intellij"))
   .settings(publishSettings: _*)
   .settings(
     name := "gatling-javapb-ijext",
-    ideaPluginName in ThisBuild := "gatling-javapb-ijext",
-    ideaBuild in ThisBuild := "193.3519.25",
+    intellijPluginName in ThisBuild := "gatling-javapb-ijext",
+    intellijBuild in ThisBuild := "193.6911.18",
     version := gatlingJavaPbVersion,
-    ideaInternalPlugins += "java",
-    ideaExternalPlugins += "org.intellij.scala".toPlugin,
+    intellijPlugins += "com.intellij.java".toPlugin,
+    intellijPlugins += "org.intellij.scala".toPlugin,
   )
   .enablePlugins(SbtIdeaPlugin)
 
