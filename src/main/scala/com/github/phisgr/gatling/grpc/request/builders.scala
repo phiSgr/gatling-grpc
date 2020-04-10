@@ -10,7 +10,7 @@ case class Grpc private[gatling](requestName: Expression[String]) {
 }
 
 class Unary[Req, Res] private[gatling](requestName: Expression[String], method: MethodDescriptor[Req, Res]) {
-  assert(method.getType == MethodDescriptor.MethodType.UNARY)
+  assert(method.getType == MethodDescriptor.MethodType.UNARY || method.getType == MethodDescriptor.MethodType.SERVER_STREAMING)
   def payload(req: Expression[Req]) = GrpcCallActionBuilder(
     requestName,
     method,
