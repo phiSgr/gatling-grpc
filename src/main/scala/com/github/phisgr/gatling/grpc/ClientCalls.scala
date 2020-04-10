@@ -10,12 +10,16 @@ object ClientCalls {
     call: ClientCall[ReqT, RespT],
     headers: Metadata,
     req: ReqT,
-    responseListener: ClientCall.Listener[RespT]
+    responseListener: ClientCall.Listener[RespT],
+    streamingResponse: Boolean
   ): Unit = {
     call.start(responseListener, headers)
     // Initially ask for two responses from flow-control so that if a misbehaving server sends
     // more than one responses, we can catch it and fail it in the listener.
-    call.request(2)
+    if(!streamingResponse)
+      call.request(2)
+    else
+      call.request(1)
 
     try {
       call.sendMessage(req)

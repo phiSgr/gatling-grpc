@@ -52,7 +52,8 @@ case class GrpcCallAction[Req, Res](
     val call = channel.newCall(builder.method, callOptions)
     ClientCalls.unaryCall(
       call, headers, payload,
-      new ContinuingListener(session, resolvedRequestName, clock.nowMillis, headers, payload)
+      new ContinuingListener(session, resolvedRequestName, clock.nowMillis, headers, payload),
+      builder.method.getType == MethodDescriptor.MethodType.SERVER_STREAMING
     )
   }
 
