@@ -57,14 +57,16 @@ class ThrottleExample extends Simulation {
           .header(TokenHeaderKey)($("token"))
           .callOptions(CallOptions.DEFAULT.withDeadlineAfter(1, TimeUnit.SECONDS))
       )
-    }.exec(
+    }
+    .exec(
       grpc("Fixed deadline")
         .rpc(GreetServiceGrpc.METHOD_GREET)
         .payload(helloWorld)
+        .silent
         .header(TokenHeaderKey)($("token"))
         .callOptions(callOptionsWithFixedDeadline)
         .check(statusCode is DEADLINE_EXCEEDED)
-  )
+    )
 
   setUp(
     s.inject(atOnceUsers(10)).throttle(reachRps(50) in 10.seconds, holdFor(10.minutes))

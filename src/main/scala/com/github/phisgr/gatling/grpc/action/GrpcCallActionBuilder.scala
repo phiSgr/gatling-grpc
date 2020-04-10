@@ -20,7 +20,8 @@ case class GrpcCallActionBuilder[Req, Res](
   callOptions: Expression[CallOptions] = CallOptions.DEFAULT.expressionSuccess,
   reversedHeaders: List[HeaderPair[_]] = Nil,
   checks: List[GrpcCheck[Res]] = Nil,
-  protocolOverride: Option[GrpcProtocol] = None
+  protocolOverride: Option[GrpcProtocol] = None,
+  isSilent: Boolean = false
 ) extends ActionBuilder {
   override def build(ctx: ScenarioContext, next: Action): Action = GrpcCallAction(this, ctx, next)
 
@@ -73,5 +74,7 @@ case class GrpcCallActionBuilder[Req, Res](
   }
 
   def target(protocol: GrpcProtocol) = copy(protocolOverride = Some(protocol))
+
+  def silent = copy(isSilent = true)
 
 }

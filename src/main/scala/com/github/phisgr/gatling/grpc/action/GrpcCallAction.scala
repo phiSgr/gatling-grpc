@@ -146,22 +146,23 @@ case class GrpcCallAction[Req, Res](
         preparedCache = null
       )
 
-      val (status, newSession) = if (checkError.isEmpty) {
-        (OK, checkSaveUpdated)
-      } else {
-        (KO, checkSaveUpdated.markAsFailed)
-      }
+      val status = if (checkError.isEmpty) OK else KO
 
       val errorMessage = checkError.map(_.message)
-      statsEngine.logResponse(
-        newSession,
-        fullRequestName,
-        startTimestamp = startTimestamp,
-        endTimestamp = endTimestamp,
-        status = status,
-        responseCode = Some(grpcStatus.getCode.toString),
-        message = errorMessage
-      )
+
+      val newSession = if (builder.isSilent) checkSaveUpdated else {
+        val withStatus = if (status == KO) checkSaveUpdated.markAsFailed else checkSaveUpdated
+        statsEngine.logResponse(
+          withStatus,
+          fullRequestName,
+          startTimestamp = startTimestamp,
+          endTimestamp = endTimestamp,
+          status = status,
+          responseCode = Some(grpcStatus.getCode.toString),
+          message = errorMessage
+        )
+        withStatus.logGroupRequestTimings(startTimestamp = startTimestamp, endTimestamp = endTimestamp)
+      }
 
       def dump = {
         StringBuilderPool.DEFAULT
