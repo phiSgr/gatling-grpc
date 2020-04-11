@@ -50,10 +50,11 @@ case class GrpcCallAction[Req, Res](
     headers: Metadata
   ): Unit = {
     val call = channel.newCall(builder.method, callOptions)
+    val streamingResponse = builder.method.getType == MethodDescriptor.MethodType.SERVER_STREAMING
     ClientCalls.unaryCall(
       call, headers, payload,
-      new ContinuingListener(session, resolvedRequestName, clock.nowMillis, headers, payload),
-      builder.method.getType == MethodDescriptor.MethodType.SERVER_STREAMING
+      new ContinuingListener(session, resolvedRequestName, clock.nowMillis, headers, payload, streamingResponse, call),
+      streamingResponse
     )
   }
 
@@ -108,7 +109,9 @@ case class GrpcCallAction[Req, Res](
     fullRequestName: String,
     startTimestamp: Long,
     headers: Metadata,
-    payload: Req
+    payload: Req,
+    streamingResponse: Boolean,
+    call: ClientCall[Req, Res]
   ) extends ClientCall.Listener[Res] with Runnable {
     private var body: Res = _
     private var grpcStatus: Status = _
@@ -118,12 +121,16 @@ case class GrpcCallAction[Req, Res](
     override def onHeaders(headers: Metadata): Unit = {}
 
     override def onMessage(message: Res): Unit = {
-      if (null != body) {
+      if (null != body && !streamingResponse) {
         throw Status.INTERNAL
           .withDescription("More than one value received for unary call")
           .asRuntimeException
       }
       this.body = message
+      if(streamingResponse) {
+        logger.trace("Requesting another message from the streaming server")
+        call.request(1)
+      }
     }
 
     override def onClose(status: Status, trailers: Metadata): Unit = {

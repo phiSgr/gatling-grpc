@@ -5,6 +5,9 @@ import io.grpc.{ClientCall, Metadata}
 object ClientCalls {
   /**
    * Adapted from [[io.grpc.stub.ClientCalls.asyncUnaryRequestCall]]
+   *
+   * Keeping the same original name although this method can handle
+   * both unary and server stream calls (see [[io.grpc.stub.ClientCalls.asyncUnaryRequestCall]] again).
    */
   def unaryCall[ReqT, RespT](
     call: ClientCall[ReqT, RespT],

@@ -9,7 +9,7 @@ import io.grpc._
 import io.grpc.health.v1.health.HealthCheckResponse.ServingStatus.SERVING
 import io.grpc.health.v1.health.HealthGrpc.Health
 import io.grpc.health.v1.health.{HealthCheckRequest, HealthCheckResponse, HealthGrpc}
-import io.grpc.stub.StreamObserver
+import io.grpc.stub.{ServerCallStreamObserver, StreamObserver}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.Future
@@ -32,6 +32,24 @@ object TestServer extends StrictLogging {
         if (!accounts.get(username).contains(token)) throw Status.PERMISSION_DENIED.asException()
         ChatMessage(username = username, data = s"Server says: Hello ${request.name}!")
       })
+
+      override def greetStream(request: HelloWorld, responseObserver: StreamObserver[ChatMessage]): Unit = {
+        val token = Option(TokenContextKey.get).getOrElse {
+          val trailers = new Metadata()
+          trailers.put(ErrorResponseKey, CustomError("You are not authenticated!"))
+          throw Status.UNAUTHENTICATED.asException(trailers)
+        }
+
+        val username = request.username
+        if (!accounts.get(username).contains(token)) throw Status.PERMISSION_DENIED.asException()
+
+        (1 to 5).foreach { i =>
+          responseObserver.onNext(
+            ChatMessage(username = username, data = s"Server says: Hello ${request.name} $i!")
+          )
+        }
+        responseObserver.onCompleted()
+      }
 
       override def register(request: RegisterRequest) = Future.fromTry(Try {
         val token = new Random().alphanumeric.take(10).mkString

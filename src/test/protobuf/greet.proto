@@ -30,4 +30,5 @@ message CustomError {
 service GreetService {
     rpc Register (RegisterRequest) returns (RegisterResponse);
     rpc Greet (HelloWorld) returns (ChatMessage);
+    rpc GreetStream (HelloWorld) returns (stream ChatMessage);
 }
