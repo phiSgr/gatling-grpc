@@ -47,7 +47,7 @@ package object javapb {
             } else {
               ret = Success(builder.build().asInstanceOf[M])
             }
-          } while (ret == null)
+          } while (ret eq null)
           ret
         case f@Failure(_) => f
       }
