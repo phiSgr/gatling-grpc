@@ -67,6 +67,12 @@ and requires importing `com.github.phisgr.gatling.pb._`.
 If you want to use Java Protobuf classes,
 you can use the [`gatling-javapb`](java-pb) library.
 
+If the expressive power of these two plumbing tools are not enough,
+you can always resort to [writing a lambda](https://github.com/phiSgr/gatling-grpc/blob/77c9bb1231037ac4a531cfee4c3f88dd09e13fbc/bench/src/main/scala/com/github/phisgr/gatling/pb/bench/TestUpdateExpr.scala#L78).
+Because an `Expression[T]`is 
+[just an alias](https://gatling.io/docs/current/session/expression_el/#expression) 
+for `Session => Validation[T]`.
+
 ### Logging
 In [`logback.xml`](https://gatling.io/docs/current/general/debugging/#logback), add  
 `<logger name="com.github.phisgr.gatling.grpc" level="DEBUG" />`  
