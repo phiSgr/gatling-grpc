@@ -126,16 +126,16 @@ case class GrpcUnaryCallAction[Req, Res](
       this.body = message
     }
 
-    override def onClose(reqStatus: Status, trailers: Metadata): Unit = {
+    override def onClose(status: Status, trailers: Metadata): Unit = {
       endTimestamp = clock.nowMillis
       this.trailers = trailers
-      grpcStatus = if (reqStatus.isOk && null == body) {
-        observer.onError(reqStatus.asRuntimeException(trailers))
+      grpcStatus = if (status.isOk && null == body) {
+        observer.onError(status.asRuntimeException(trailers))
         Status.INTERNAL
-          .withDescription("No value received for server streaming call")
+          .withDescription("No value received for unary or server streaming call")
       } else {
         observer.onCompleted()
-        reqStatus
+        status
       }
       // run() in Akka threads
       dispatcher.execute(this)
