@@ -13,17 +13,18 @@ import io.grpc.{CallOptions, Metadata, MethodDescriptor}
 
 import scala.collection.breakOut
 
-case class GrpcCallActionBuilder[Req, Res](
+case class GrpcStreamingCallActionBuilder[Req, Res](
   requestName: Expression[String],
   method: MethodDescriptor[Req, Res],
-  payload: Expression[Req],
+  payload: Seq[Expression[Req]],
+  streamingResponse: Boolean,
   callOptions: Expression[CallOptions] = CallOptions.DEFAULT.expressionSuccess,
   reversedHeaders: List[HeaderPair[_]] = Nil,
   checks: List[GrpcCheck[Res]] = Nil,
   protocolOverride: Option[GrpcProtocol] = None,
   isSilent: Boolean = false
 ) extends ActionBuilder {
-  override def build(ctx: ScenarioContext, next: Action): Action = GrpcCallAction(this, ctx, next)
+  override def build(ctx: ScenarioContext, next: Action): Action = GrpcStreamingCallAction(this, ctx, next)
 
   def callOptions(callOptions: Expression[CallOptions]) = copy(
     callOptions = callOptions

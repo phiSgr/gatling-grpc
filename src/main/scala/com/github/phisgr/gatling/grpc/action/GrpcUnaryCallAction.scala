@@ -2,7 +2,7 @@ package com.github.phisgr.gatling.grpc.action
 
 import com.github.phisgr.gatling.grpc.ClientCalls
 import com.github.phisgr.gatling.grpc.check.{GrpcResponse, StatusExtract}
-import com.github.phisgr.gatling.grpc.protocol.GrpcProtocol
+import com.github.phisgr.gatling.grpc.protocol.{CallToStreamObserverAdapter, GrpcProtocol, GrpcResponseObserver}
 import com.github.phisgr.gatling.grpc.util.GrpcStringBuilder
 import io.gatling.commons.stats.{KO, OK}
 import io.gatling.commons.util.Clock
@@ -16,18 +16,16 @@ import io.gatling.core.structure.ScenarioContext
 import io.gatling.core.util.NameGen
 import io.gatling.netty.util.StringBuilderPool
 import io.grpc._
+import io.grpc.stub.StreamObserver
 
-case class GrpcCallAction[Req, Res](
-  builder: GrpcCallActionBuilder[Req, Res],
-  ctx: ScenarioContext,
-  next: Action
-) extends RequestAction with NameGen {
+case class GrpcUnaryCallAction[Req, Res](
+                                          builder: GrpcUnaryCallActionBuilder[Req, Res],
+                                          ctx: ScenarioContext,
+                                          next: Action
+                                        ) extends RequestAction with NameGen {
   override def clock: Clock = ctx.coreComponents.clock
-
   override def statsEngine: StatsEngine = ctx.coreComponents.statsEngine
-
-  override val name = genName("grpcCall")
-
+  override val name = genName("grpcUnaryCall")
   override def requestName: Expression[String] = builder.requestName
 
   private val component: GrpcProtocol.GrpcComponent = {
@@ -42,17 +40,26 @@ case class GrpcCallAction[Req, Res](
   private val dispatcher = ctx.coreComponents.actorSystem.dispatcher
 
   private def run(
-    channel: Channel,
-    payload: Req,
-    session: Session,
-    resolvedRequestName: String,
-    callOptions: CallOptions,
-    headers: Metadata
-  ): Unit = {
+                   channel: Channel,
+                   payload: Req,
+                   session: Session,
+                   resolvedRequestName: String,
+                   callOptions: CallOptions,
+                   headers: Metadata
+                 ): Unit = {
     val call = channel.newCall(builder.method, callOptions)
-    ClientCalls.unaryCall(
-      call, headers, payload,
-      new ContinuingListener(session, resolvedRequestName, clock.nowMillis, headers, payload)
+
+    ClientCalls.asyncUnaryRequestCall(
+      call, headers, payload, builder.streamingResponse,
+      new ContinuingListener(
+        session,
+        resolvedRequestName,
+        clock.nowMillis,
+        headers,
+        payload,
+        observer = new GrpcResponseObserver[Res],
+        adapter = new CallToStreamObserverAdapter[Req, Res](call),
+        builder.streamingResponse)
     )
   }
 
@@ -86,52 +93,49 @@ case class GrpcCallAction[Req, Res](
     }
   }
 
-  /**
-   * After the call ends, [[onClose]] will be called,
-   * then the execution will continue at [[run]] in the Akka dispatcher
-   * and finally forward to the next action.
-   *
-   * See [[io.grpc.stub.ClientCalls.UnaryStreamToFuture]]
-   *
-   * The headers object is read for logging after ClientCall.start. This is supposedly not safe.
-   * We are accessing it after the call closed, so let's hope nothing bad happens.
-   *
-   * @param session         the virtual user
-   * @param fullRequestName the resolved request name
-   * @param startTimestamp  start of the call
-   * @param headers         for logging
-   * @param payload         for logging
-   */
   class ContinuingListener(
-    session: Session,
-    fullRequestName: String,
-    startTimestamp: Long,
-    headers: Metadata,
-    payload: Req
-  ) extends ClientCall.Listener[Res] with Runnable {
+                            session: Session,
+                            fullRequestName: String,
+                            startTimestamp: Long,
+                            headers: Metadata,
+                            payload: Req,
+                            observer: StreamObserver[Res],
+                            adapter: CallToStreamObserverAdapter[Req, Res],
+                            streamingResponse: Boolean
+                          ) extends ClientCall.Listener[Res] with Runnable{
     private var body: Res = _
     private var grpcStatus: Status = _
     private var trailers: Metadata = _
     private var endTimestamp = 0L
+    private var firstResponseReceived: Boolean = _
 
     override def onHeaders(headers: Metadata): Unit = {}
 
     override def onMessage(message: Res): Unit = {
-      if (null != body) {
+      if (firstResponseReceived && !streamingResponse) {
         throw Status.INTERNAL
-          .withDescription("More than one value received for unary call")
+          .withDescription("More than one responses received for unary call")
           .asRuntimeException
+      }
+      firstResponseReceived = true
+      observer.onNext(message)
+      if (streamingResponse && adapter.isAutoFlowControlEnabled){
+        // Request delivery of the next inbound message.
+        adapter.request(1)
       }
       this.body = message
     }
 
-    override def onClose(status: Status, trailers: Metadata): Unit = {
+    override def onClose(reqStatus: Status, trailers: Metadata): Unit = {
       endTimestamp = clock.nowMillis
       this.trailers = trailers
-      grpcStatus = if (status.isOk && null == body) {
-        Status.INTERNAL.withDescription("No value received for unary call")
+      grpcStatus = if (reqStatus.isOk && null == body) {
+        observer.onError(reqStatus.asRuntimeException(trailers))
+        Status.INTERNAL
+          .withDescription("No value received for server streaming call")
       } else {
-        status
+        observer.onCompleted()
+        reqStatus
       }
       // run() in Akka threads
       dispatcher.execute(this)
@@ -195,5 +199,4 @@ case class GrpcCallAction[Req, Res](
       next ! newSession
     }
   }
-
 }
