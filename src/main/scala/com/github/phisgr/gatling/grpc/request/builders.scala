@@ -11,10 +11,10 @@ case class Grpc private[gatling](requestName: Expression[String]) {
   def serverStreamingCall[Req, Res](method: MethodDescriptor[Req, Res]): AsyncUnaryRequestCall[Req, Res] =
     new AsyncUnaryRequestCall(requestName, method, streamingResponse = true)
 
-  def ClientStreamingCall[Req, Res](method: MethodDescriptor[Req, Res]): AsyncStreamingRequestCall[Req, Res] =
+  def clientStreamingCall[Req, Res](method: MethodDescriptor[Req, Res]): AsyncStreamingRequestCall[Req, Res] =
     new AsyncStreamingRequestCall(requestName, method, streamingResponse = false)
 
-  def BidiStreamingCall[Req, Res](method: MethodDescriptor[Req, Res]): AsyncStreamingRequestCall[Req, Res] =
+  def bidiStreamingCall[Req, Res](method: MethodDescriptor[Req, Res]): AsyncStreamingRequestCall[Req, Res] =
     new AsyncStreamingRequestCall(requestName, method, streamingResponse = true)
 }
 
