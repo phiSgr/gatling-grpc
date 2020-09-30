@@ -4,7 +4,9 @@ package example;
 
 option java_package = "com.github.phisgr.example";
 
-message HelloWorld {
+import "google/protobuf/empty.proto";
+
+message GreetRequest {
     string username = 1;
     string name = 2;
 }
@@ -12,6 +14,8 @@ message HelloWorld {
 message ChatMessage {
     string username = 1;
     string data = 2;
+
+    int64 time = 3;
 }
 
 message RegisterRequest {
@@ -27,7 +31,10 @@ message CustomError {
     string message = 1;
 }
 
-service GreetService {
+service ChatService {
     rpc Register (RegisterRequest) returns (RegisterResponse);
-    rpc Greet (HelloWorld) returns (ChatMessage);
+    rpc Greet (GreetRequest) returns (ChatMessage);
+
+    rpc Listen (google.protobuf.Empty) returns (stream ChatMessage);
+    rpc Chat (stream ChatMessage) returns (stream ChatMessage);
 }

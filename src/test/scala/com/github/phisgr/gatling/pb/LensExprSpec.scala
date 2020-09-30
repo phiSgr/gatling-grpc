@@ -8,18 +8,17 @@ import io.gatling.core.session.{Expression, Session}
 import org.scalatest.{FlatSpec, Matchers}
 
 class LensExprSpec extends FlatSpec with Matchers with StrictLogging {
-  val session = Session(
+  private val session = Session(
     scenario = "Scenario",
     userId = 1L,
-    attributes = Map(
-      "bar" -> Bar(baz = 1),
-      "baz" -> 2,
-      "bars" -> List(Bar(baz = 5), Bar(baz = 6)),
-      "stringBar" -> ("bar", Bar(baz = 10)),
-      "stringBarMap" -> Map("barr" -> Bar(baz = 11)),
-      "generics" -> List("erasure", "BOOM!")
-    ),
-    startDate = System.currentTimeMillis()
+    eventLoop = null
+  ).setAll(
+    "bar" -> Bar(baz = 1),
+    "baz" -> 2,
+    "bars" -> List(Bar(baz = 5), Bar(baz = 6)),
+    "stringBar" -> ("bar" -> Bar(baz = 10)),
+    "stringBarMap" -> Map("barr" -> Bar(baz = 11)),
+    "generics" -> List("erasure", "BOOM!")
   )
 
   "Setting with lens" should "work" in {
@@ -60,6 +59,16 @@ class LensExprSpec extends FlatSpec with Matchers with StrictLogging {
       Foo(
         bar = List(
           Bar(2), Bar(2), Bar(2), Bar(2)
+        )
+      )
+    )
+
+    fooE.updateExpr(
+      _.bar(2).baz :~ $("baz")
+    )(session) shouldBe Success(
+      Foo(
+        bar = List(
+          Bar(2), Bar(1), Bar(2), Bar(6)
         )
       )
     )

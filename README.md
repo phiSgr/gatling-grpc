@@ -17,7 +17,7 @@ along with the two required by Gatling.
 libraryDependencies ++= Seq(
   "io.gatling.highcharts" % "gatling-charts-highcharts" % gatlingVersion % "test",
   "io.gatling" % "gatling-test-framework" % gatlingVersion % "test",
-  "com.github.phisgr" %% "gatling-grpc" % "0.8.2" % "test"
+  "com.github.phisgr" %% "gatling-grpc" % "0.9.0" % "test"
 )
 enablePlugins(GatlingPlugin)
 ```
@@ -39,8 +39,8 @@ To make a gRPC call:
 ```scala
 exec(
   grpc("my_request")
-    .rpc(GreetServiceGrpc.METHOD_GREET)
-    .payload(HelloWorld(
+    .rpc(ChatServiceGrpc.METHOD_GREET)
+    .payload(GreetRequest(
       username = "myUserName",
       name = "My name"
     ))
@@ -82,4 +82,4 @@ or set the `level` to `TRACE` to log all gRPC requests.
 ## Development
 
 `sbt clean coverage test gatling:test coverageReport` for a coverage report.  
-`sbt bench/clean 'bench/jmh:run -i 10 -wi 5 -f1 -t1'` for JMH tests.
+`sbt clean bench/clean 'bench/jmh:run -i 3 -wi 3 -f10 -t1 -prof gc'` for JMH tests.

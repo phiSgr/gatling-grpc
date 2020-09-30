@@ -2,7 +2,7 @@ package com.github.phisgr.example
 
 import java.util.concurrent.TimeUnit
 
-import com.github.phisgr.example.greet.{GreetServiceGrpc, HelloWorld, RegisterRequest}
+import com.github.phisgr.example.chat.{ChatServiceGrpc, GreetRequest, RegisterRequest}
 import com.github.phisgr.example.util.TokenHeaderKey
 import com.github.phisgr.gatling.grpc.Predef._
 import com.github.phisgr.gatling.pb._
@@ -20,8 +20,9 @@ class ThrottleExample extends Simulation {
   val grpcConf = grpc(managedChannelBuilder(target = "localhost:8080").usePlaintext())
     .shareChannel
     .disableWarmUp
+    .forceParsing
 
-  val helloWorld: Expression[HelloWorld] = HelloWorld(name = "World").updateExpr(
+  val greetPayload: Expression[GreetRequest] = GreetRequest(name = "World").updateExpr(
     _.username :~ $("username")
   )
 
@@ -36,7 +37,7 @@ class ThrottleExample extends Simulation {
     .feed(csv("usernames.csv").queue)
     .exec(
       grpc("Register")
-        .rpc(GreetServiceGrpc.METHOD_REGISTER)
+        .rpc(ChatServiceGrpc.METHOD_REGISTER)
         .payload(RegisterRequest.defaultInstance.updateExpr(
           _.username :~ $("username")
         ))
@@ -46,22 +47,22 @@ class ThrottleExample extends Simulation {
     .repeat(60) {
       exec(
         grpc("Success")
-          .rpc(GreetServiceGrpc.METHOD_GREET)
-          .payload(helloWorld)
+          .rpc(ChatServiceGrpc.METHOD_GREET)
+          .payload(greetPayload)
           .header(TokenHeaderKey)($("token"))
           .extract(_.data.split(' ').headOption)(_ saveAs "s")
       ).exec(
         grpc("With deadline")
-          .rpc(GreetServiceGrpc.METHOD_GREET)
-          .payload(helloWorld)
+          .rpc(ChatServiceGrpc.METHOD_GREET)
+          .payload(greetPayload)
           .header(TokenHeaderKey)($("token"))
           .callOptions(CallOptions.DEFAULT.withDeadlineAfter(1, TimeUnit.SECONDS))
       )
     }
     .exec(
       grpc("Fixed deadline")
-        .rpc(GreetServiceGrpc.METHOD_GREET)
-        .payload(helloWorld)
+        .rpc(ChatServiceGrpc.METHOD_GREET)
+        .payload(greetPayload)
         .silent
         .header(TokenHeaderKey)($("token"))
         .callOptions(callOptionsWithFixedDeadline)

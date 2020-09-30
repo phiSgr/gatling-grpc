@@ -1,3 +1,14 @@
+#### 0.9.0
+Upgrades to Gatling 3.4.0.
+
+Defaults to not parsing gRPC response for unary calls.
+Call `forceParsing` on your GrpcProtocol to force parsing.
+
+Removed the `.exists(f)` check shorthand.
+Write `.extract(f)(_.exists)` instead.
+
+Streaming support!
+
 #### 0.8.2
 Fix metadata reflection failure.
 Supports silent and group.

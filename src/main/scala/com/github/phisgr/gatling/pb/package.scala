@@ -41,9 +41,9 @@ package object pb {
   ) extends AnyVal {
     type CBF = collection.generic.CanBuildFrom[Coll[B], B, Coll[B]]
 
-    def :+~(e: Expression[B])(implicit cbf: CBF): Expression[Mutation[A]] =
+    def :+~(e: Expression[B]): Expression[Mutation[A]] =
       e.map(l :+= _)
-    def :++~(e: Expression[GenTraversableOnce[B]])(implicit cbf: CBF): Expression[Mutation[A]] =
+    def :++~(e: Expression[GenTraversableOnce[B]]): Expression[Mutation[A]] =
       e.map(l :++= _)
     def foreachExpr(f: Lens[B, B] => Expression[Mutation[B]])(implicit cbf: CBF): Expression[Mutation[A]] =
       f(Lens.unit).map(m => l.foreach(_ => m))

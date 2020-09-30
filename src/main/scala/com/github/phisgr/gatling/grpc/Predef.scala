@@ -1,5 +1,5 @@
 package com.github.phisgr.gatling.grpc
 
-import com.github.phisgr.gatling.grpc.check.GrpcCheckSupport
+import com.github.phisgr.gatling.grpc.check.{GrpcCheckSupport, StreamingCheckSupport}
 
-object Predef extends GrpcDsl with GrpcCheckSupport
+object Predef extends GrpcDsl with GrpcCheckSupport with StreamingCheckSupport

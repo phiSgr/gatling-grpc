@@ -1,80 +1,33 @@
 package com.github.phisgr.gatling.grpc.action
 
-import com.github.phisgr.gatling.grpc.HeaderPair
-import com.github.phisgr.gatling.grpc.check.{GrpcCheck, ResponseExtract}
-import com.github.phisgr.gatling.grpc.protocol.GrpcProtocol
-import io.gatling.commons.validation.Success
+import com.github.phisgr.gatling.grpc.check.{CheckMixin, GrpcCheck}
+import com.github.phisgr.gatling.grpc.request.{CallAttributes, CallAttributesMixin}
 import io.gatling.core.action.Action
 import io.gatling.core.action.builder.ActionBuilder
-import io.gatling.core.check.{MultipleFindCheckBuilder, ValidatorCheckBuilder}
-import io.gatling.core.session.{Expression, ExpressionSuccessWrapper, Session}
+import io.gatling.core.session.Expression
 import io.gatling.core.structure.ScenarioContext
-import io.grpc.{CallOptions, Metadata, MethodDescriptor}
-
-import scala.collection.breakOut
+import io.grpc.MethodDescriptor
 
 case class GrpcCallActionBuilder[Req, Res](
   requestName: Expression[String],
   method: MethodDescriptor[Req, Res],
   payload: Expression[Req],
-  callOptions: Expression[CallOptions] = CallOptions.DEFAULT.expressionSuccess,
-  reversedHeaders: List[HeaderPair[_]] = Nil,
+  private[gatling] val callAttributes: CallAttributes = CallAttributes(),
   checks: List[GrpcCheck[Res]] = Nil,
-  protocolOverride: Option[GrpcProtocol] = None,
   isSilent: Boolean = false
-) extends ActionBuilder {
-  override def build(ctx: ScenarioContext, next: Action): Action = GrpcCallAction(this, ctx, next)
+) extends ActionBuilder
+  with CallAttributesMixin[GrpcCallActionBuilder[Req, Res]]
+  with CheckMixin[GrpcCallActionBuilder[Req, Res], GrpcCheck, Res] {
 
-  def callOptions(callOptions: Expression[CallOptions]) = copy(
-    callOptions = callOptions
-  )
+  override def build(ctx: ScenarioContext, next: Action): Action = new GrpcCallAction(this, ctx, next)
 
-  /**
-   * Sets call options of the call.
-   *
-   * @param callOptions is a call-by-name param, it will be run every time the call is executed.
-   * @return a new GrpcCallActionBuilder
-   */
-  def callOptions(callOptions: => CallOptions) = copy(
-    callOptions = { _: Session => Success(callOptions) }
-  )
+  override def check(checks: GrpcCheck[Res]*): GrpcCallActionBuilder[Req, Res] =
+    copy(checks = this.checks ::: checks.toList)
 
-  def header[T](key: Metadata.Key[T])(value: Expression[T]) = copy(
-    reversedHeaders = HeaderPair(key, value) :: reversedHeaders
-  )
+  override private[gatling] def withCallAttributes(callAttributes: CallAttributes): GrpcCallActionBuilder[Req, Res] =
+    copy(callAttributes = callAttributes)
 
-  private def mapToList[T, U](s: Seq[T])(f: T => U) = s.map[U, List[U]](f)(breakOut)
-
-  def check(checks: GrpcCheck[Res]*) = copy(
-    checks = this.checks ::: checks.toList
-  )
-
-  // In fact they can be added to checks using .check
-  // but the type Res cannot be inferred there
-  def extract[X](
-    f: Res => Option[X])(
-    ts: (ValidatorCheckBuilder[ResponseExtract, Res, X] => GrpcCheck[Res])*
-  ) = {
-    val e = ResponseExtract.extract(f)
-    copy(
-      checks = checks ::: mapToList(ts)(_.apply(e))
-    )
-  }
-
-  def exists[X](f: Res => Option[X]) = extract(f)(_.exists.build(ResponseExtract.materializer))
-
-  def extractMultiple[X](
-    f: Res => Option[Seq[X]])(
-    ts: (MultipleFindCheckBuilder[ResponseExtract, Res, X] => GrpcCheck[Res])*
-  ) = {
-    val e = ResponseExtract.extractMultiple[Res, X](f)
-    copy(
-      checks = checks ::: mapToList(ts)(_.apply(e))
-    )
-  }
-
-  def target(protocol: GrpcProtocol) = copy(protocolOverride = Some(protocol))
-
-  def silent = copy(isSilent = true)
+  def silent: GrpcCallActionBuilder[Req, Res] =
+    copy(isSilent = true)
 
 }

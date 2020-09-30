@@ -4,7 +4,11 @@ import java.lang.{StringBuilder => JStringBuilder}
 
 import com.google.common.base.Charsets.US_ASCII
 import io.gatling.commons.util.StringHelper.Eol
+import io.gatling.commons.validation.Failure
+import io.gatling.core.session.Session
 import io.grpc.{InternalMetadata, Metadata, Status}
+
+import scala.reflect.ClassTag
 
 package object util {
 
@@ -26,6 +30,11 @@ package object util {
       appendWithEol(payloadString)
     }
 
+    def appendSession(session: Session): JStringBuilder = {
+      appendWithEol("Session:")
+      appendWithEol(session)
+    }
+
     def appendResponse(body: Any, status: Status, trailers: Metadata): JStringBuilder = {
       appendStatus(status)
       appendTrailers(trailers)
@@ -45,7 +54,7 @@ package object util {
       buff
     }
 
-    private def appendStatus(s: Status): JStringBuilder = {
+    def appendStatus(s: Status): JStringBuilder = {
       buff.append("status=").append(Eol)
         .append(s.getCode)
       val description = s.getDescription
@@ -64,7 +73,7 @@ package object util {
     private def appendHeaders(headers: Metadata): JStringBuilder =
       appendMetadata(headers, "headers")
 
-    private def appendTrailers(trailers: Metadata): JStringBuilder =
+    def appendTrailers(trailers: Metadata): JStringBuilder =
       appendMetadata(trailers, "trailers")
 
     private def appendMetadata(metadata: Metadata, headersOrTrailers: String): JStringBuilder = {
@@ -91,5 +100,9 @@ package object util {
       buff
     }
   }
+
+  private[gatling] def wrongTypeMessage[T: ClassTag](value: Any) = Failure(
+    s"Value $value is of type ${value.getClass.getName}, expected ${implicitly[ClassTag[T]].runtimeClass.getName}"
+  )
 
 }

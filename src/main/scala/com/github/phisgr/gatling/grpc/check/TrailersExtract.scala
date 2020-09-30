@@ -1,5 +1,6 @@
 package com.github.phisgr.gatling.grpc.check
 
+import com.github.phisgr.gatling.grpc.check.GrpcResponse.GrpcStreamEnd
 import io.gatling.commons.validation.SuccessWrapper
 import io.gatling.core.check.{CheckMaterializer, CountCriterionExtractor, DefaultMultipleFindCheckBuilder, Extractor, FindAllCriterionExtractor, FindCriterionExtractor, Preparer}
 import io.gatling.core.session.{Expression, ExpressionSuccessWrapper}
@@ -49,6 +50,12 @@ private[gatling] object TrailersExtract {
     specializer = GrpcCheck(_, GrpcCheck.Trailers)
   ) {
     override protected def preparer: Preparer[GrpcResponse[Any], Metadata] = _.trailers.success
+  }
+
+  object StreamMaterializer extends CheckMaterializer[TrailersExtract, StreamCheck[GrpcStreamEnd], GrpcStreamEnd, Metadata](
+    specializer = StreamCheck(_, GrpcCheck.Trailers)
+  ) {
+    override protected def preparer: Preparer[GrpcStreamEnd, Metadata] = _.trailers.success
   }
 
 }

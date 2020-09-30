@@ -1,6 +1,6 @@
 package com.github.phisgr.example
 
-import com.github.phisgr.example.greet._
+import com.github.phisgr.example.chat._
 import com.github.phisgr.example.util._
 import com.github.phisgr.gatling.grpc.Predef._
 import com.github.phisgr.gatling.pb._
@@ -14,16 +14,16 @@ class GrpcExample extends Simulation {
   TestServer.startEmptyServer()
 
   val grpcConf = grpc(managedChannelBuilder(name = "localhost", port = 8080).usePlaintext())
-    .warmUpCall(GreetServiceGrpc.METHOD_GREET, HelloWorld.defaultInstance)
+    .warmUpCall(ChatServiceGrpc.METHOD_GREET, GreetRequest.defaultInstance)
   val emptyGrpc = grpc(managedChannelBuilder(name = "localhost", port = 9999).usePlaintext())
 
-  val helloWorld: Expression[HelloWorld] = HelloWorld(name = "World").updateExpr(
+  val greetPayload: Expression[GreetRequest] = GreetRequest(name = "World").updateExpr(
     _.username :~ $("username")
   )
 
   val successfulCall = grpc("Success")
-    .rpc(GreetServiceGrpc.METHOD_GREET)
-    .payload(helloWorld)
+    .rpc(ChatServiceGrpc.METHOD_GREET)
+    .payload(greetPayload)
     .header(TokenHeaderKey)($("token"))
     .extract(_.data.split(' ').headOption)(_ saveAs "s")
 
@@ -31,7 +31,7 @@ class GrpcExample extends Simulation {
     .feed(csv("usernames.csv")) // the first two are duplicated to force an ALREADY_EXISTS error
     .exec(
       grpc("Register")
-        .rpc(GreetServiceGrpc.METHOD_REGISTER)
+        .rpc(ChatServiceGrpc.METHOD_REGISTER)
         .payload(RegisterRequest.defaultInstance.updateExpr(
           _.username :~ $("username")
         ))
@@ -41,35 +41,42 @@ class GrpcExample extends Simulation {
     .exec(successfulCall)
     .exec(
       grpc("Empty server")
-        .rpc(GreetServiceGrpc.METHOD_REGISTER)
+        .rpc(ChatServiceGrpc.METHOD_REGISTER)
         .payload(RegisterRequest.defaultInstance)
         .check(statusCode is Status.Code.UNIMPLEMENTED)
         .target(emptyGrpc)
     )
     .exec(
       grpc("Cannot Build")
-        .rpc(GreetServiceGrpc.METHOD_GREET)
+        .rpc(ChatServiceGrpc.METHOD_GREET)
         .payload($("notDefined"))
         .check(
           // the extraction checks can be added inside .check
           // but the extraction functions need type annotation
           // so .extract and .extractMultiple are added to GrpcCallActionBuilder, see below
-          extract { c: ChatMessage => c.username.some },
-          extractMultiple { c: ChatMessage => c.data.split(' ').toSeq.some }
+          extract((_: ChatMessage).username.some),
+          extractMultiple((_: ChatMessage).data.split(' ').toSeq.some)
         )
     )
     .exec(
       grpc("Cannot Build, with header not found")
-        .rpc(GreetServiceGrpc.METHOD_GREET)
-        .payload(HelloWorld.defaultInstance)
+        .rpc(ChatServiceGrpc.METHOD_GREET)
+        .payload(GreetRequest.defaultInstance)
         .header(TokenHeaderKey)($("notDefined"))
+    )
+    .exec(
+      grpc("Trigger logging")
+        .rpc(ChatServiceGrpc.METHOD_GREET)
+        .payload(greetPayload)
+        .header(TokenHeaderKey)($("token"))
+        .check(statusCode is Status.Code.NOT_FOUND)
     )
     .repeat(1000) {
       exec(successfulCall)
         .exec(
           grpc("Expect UNAUTHENTICATED")
-            .rpc(GreetServiceGrpc.METHOD_GREET)
-            .payload(helloWorld)
+            .rpc(ChatServiceGrpc.METHOD_GREET)
+            .payload(greetPayload)
             .check(
               statusCode is Status.Code.UNAUTHENTICATED,
               statusDescription.notExists,
@@ -82,16 +89,16 @@ class GrpcExample extends Simulation {
         )
         .exec(
           grpc("Expect PERMISSION_DENIED")
-            .rpc(GreetServiceGrpc.METHOD_GREET)
-            .payload(HelloWorld(username = "DoesNotExist"))
+            .rpc(ChatServiceGrpc.METHOD_GREET)
+            .payload(GreetRequest(username = "DoesNotExist"))
             .header(TokenHeaderKey)($("token"))
             .check(statusCode is Status.Code.PERMISSION_DENIED)
         )
         .exec(
           grpc("Use session")
-            .rpc(GreetServiceGrpc.METHOD_GREET)
+            .rpc(ChatServiceGrpc.METHOD_GREET)
             .payload(
-              HelloWorld.defaultInstance.updateExpr(
+              GreetRequest.defaultInstance.updateExpr(
                 _.name :~ $("s"),
                 _.username :~ $("username")
               )
@@ -101,15 +108,15 @@ class GrpcExample extends Simulation {
         )
         .exec(
           grpc("Extraction crash")
-            .rpc(GreetServiceGrpc.METHOD_GREET)
-            .payload(helloWorld)
+            .rpc(ChatServiceGrpc.METHOD_GREET)
+            .payload(greetPayload)
             .header(TokenHeaderKey)($("token"))
-            .exists(_.data.split(' ')(10).some) // This will crash, see below
+            .extract(_.data.split(' ')(10).some)(_.exists) // This will crash, see below
         )
         .exec(
           grpc("Extract multiple")
-            .rpc(GreetServiceGrpc.METHOD_GREET)
-            .payload(helloWorld)
+            .rpc(ChatServiceGrpc.METHOD_GREET)
+            .payload(greetPayload)
             .header(TokenHeaderKey)($("token"))
             .extractMultiple(_.data.split(' ').toSeq.some)(
               _.count is 4,

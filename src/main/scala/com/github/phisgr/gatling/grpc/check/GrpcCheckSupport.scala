@@ -5,11 +5,13 @@ import io.grpc.{Metadata, Status}
 
 trait GrpcCheckSupport {
 
-  val statusCode = StatusExtract.StatusCode
+  val statusCode: FindCheckBuilder[StatusExtract, Status, Status.Code] =
+    StatusExtract.StatusCode
 
-  val statusDescription = StatusExtract.StatusDescription
+  val statusDescription: FindCheckBuilder[StatusExtract, Status, String] =
+    StatusExtract.StatusDescription
 
-  def extract[T, X](f: T => Option[X]): ValidatorCheckBuilder[ResponseExtract, T, X] =
+  def extract[T, X](f: T => Option[X]): FindCheckBuilder[ResponseExtract, T, X] =
     ResponseExtract.extract(f)
 
   def extractMultiple[T, X](f: T => Option[Seq[X]]): DefaultMultipleFindCheckBuilder[ResponseExtract, T, X] =

@@ -1,13 +1,17 @@
 package com.github.phisgr.gatling.grpc.action
 
+import java.io.{ByteArrayInputStream, InputStream}
+
+import com.github.phisgr.gatling.forToMatch
 import com.github.phisgr.gatling.grpc.ClientCalls
-import com.github.phisgr.gatling.grpc.check.{GrpcResponse, StatusExtract}
+import com.github.phisgr.gatling.grpc.check.{GrpcCheck, GrpcResponse, StatusExtract}
 import com.github.phisgr.gatling.grpc.protocol.GrpcProtocol
+import com.github.phisgr.gatling.grpc.request.Call
 import com.github.phisgr.gatling.grpc.util.GrpcStringBuilder
 import io.gatling.commons.stats.{KO, OK}
 import io.gatling.commons.util.Clock
 import io.gatling.commons.util.StringHelper.Eol
-import io.gatling.commons.validation.{SuccessWrapper, Validation}
+import io.gatling.commons.validation.Validation
 import io.gatling.core.action.{Action, RequestAction}
 import io.gatling.core.check.Check
 import io.gatling.core.session.{Expression, Session}
@@ -15,31 +19,49 @@ import io.gatling.core.stats.StatsEngine
 import io.gatling.core.structure.ScenarioContext
 import io.gatling.core.util.NameGen
 import io.gatling.netty.util.StringBuilderPool
+import io.grpc.MethodDescriptor.Marshaller
 import io.grpc._
 
-case class GrpcCallAction[Req, Res](
+import scala.reflect.io.Streamable
+
+class GrpcCallAction[Req, Res](
   builder: GrpcCallActionBuilder[Req, Res],
   ctx: ScenarioContext,
-  next: Action
-) extends RequestAction with NameGen {
-  override def clock: Clock = ctx.coreComponents.clock
+  override val next: Action
+) extends Call(ctx, builder.callAttributes) with RequestAction with NameGen {
 
-  override def statsEngine: StatsEngine = ctx.coreComponents.statsEngine
+  private[this] val throttler = ctx.coreComponents.throttler match {
+    // not calling .filter to not make ctx a field
+    case Some(throttler) if ctx.throttled => throttler
+    case _ => null
+  }
 
-  override val name = genName("grpcCall")
+  override val clock: Clock = ctx.coreComponents.clock
+  override val statsEngine: StatsEngine = ctx.coreComponents.statsEngine
 
+  override val name: String = genName("grpcCall")
   override def requestName: Expression[String] = builder.requestName
 
-  private val component: GrpcProtocol.GrpcComponent = {
-    val protocolKey = builder.protocolOverride.fold(GrpcProtocol.GrpcProtocolKey)(_.overridingKey)
-    ctx.protocolComponentsRegistry.components(protocolKey)
-  }
-
-  private val resolvedChecks = if (builder.checks.exists(_.checksStatus)) builder.checks else {
+  private[this] val resolvedChecks = (if (builder.checks.exists(_.checksStatus)) builder.checks else {
     StatusExtract.DefaultCheck :: builder.checks
-  }
+  }).asInstanceOf[List[GrpcCheck[Any]]]
 
-  private val dispatcher = ctx.coreComponents.actorSystem.dispatcher
+  private[this] val notParsed = component.noParsing && builder.checks.forall(_.scope != GrpcCheck.Value)
+
+  private[this] val method = (if (notParsed) {
+    val mayLog = logger.underlying.isDebugEnabled || logger.underlying.isTraceEnabled
+    val responseMarshaller = if (mayLog) {
+      GrpcCallAction.ByteArrayMarshaller
+    } else {
+      GrpcProtocol.EmptyMarshaller
+    }
+    builder.method.toBuilder(
+      builder.method.getRequestMarshaller,
+      responseMarshaller
+    ).build()
+  } else {
+    builder.method
+  }).asInstanceOf[MethodDescriptor[Req, Any]]
 
   private def run(
     channel: Channel,
@@ -49,35 +71,23 @@ case class GrpcCallAction[Req, Res](
     callOptions: CallOptions,
     headers: Metadata
   ): Unit = {
-    val call = channel.newCall(builder.method, callOptions)
-    ClientCalls.unaryCall(
+    val call = channel.newCall(method, callOptions)
+    ClientCalls.asyncUnaryRequestCall(
       call, headers, payload,
-      new ContinuingListener(session, resolvedRequestName, clock.nowMillis, headers, payload)
+      new ContinuingListener(session, resolvedRequestName, clock.nowMillis, headers, payload),
+      streamingResponse = false
     )
   }
 
-  private val headerPairs = builder.reversedHeaders.reverse.toArray
-  private def resolveHeaders(session: Session): Validation[Metadata] = {
-    val md = new Metadata()
-    val size = headerPairs.length
-    var i = 0
-    while (i < size) {
-      val failure = headerPairs(i).mutateMetadata(session, md)
-      if (failure ne null) return failure
-      i += 1
-    }
-    md.success
-  }
-
-  override def sendRequest(requestName: String, session: Session): Validation[Unit] = {
+  override def sendRequest(requestName: String, session: Session): Validation[Unit] = forToMatch {
     for {
       headers <- resolveHeaders(session)
       resolvedPayload <- builder.payload(session)
-      callOptions <- builder.callOptions(session)
+      callOptions <- callOptions(session)
     } yield {
       val channel = component.getChannel(session)
-      if (ctx.throttled) {
-        ctx.coreComponents.throttler.throttle(session.scenario, () =>
+      if (throttler ne null) {
+        throttler.throttle(session.scenario, () =>
           run(channel, resolvedPayload, session, resolvedRequestName = requestName, callOptions, headers)
         )
       } else {
@@ -88,7 +98,7 @@ case class GrpcCallAction[Req, Res](
 
   /**
    * After the call ends, [[onClose]] will be called,
-   * then the execution will continue at [[run]] in the Akka dispatcher
+   * then the execution will continue at [[run]] in the session event loop
    * and finally forward to the next action.
    *
    * See [[io.grpc.stub.ClientCalls.UnaryStreamToFuture]]
@@ -108,15 +118,18 @@ case class GrpcCallAction[Req, Res](
     startTimestamp: Long,
     headers: Metadata,
     payload: Req
-  ) extends ClientCall.Listener[Res] with Runnable {
-    private var body: Res = _
-    private var grpcStatus: Status = _
-    private var trailers: Metadata = _
-    private var endTimestamp = 0L
+  ) extends ClientCall.Listener[Any] with Runnable {
+    // null if failed;
+    // Res if checks value; Array[Byte] if we may need logging; Unit if neither
+    private[this] var body: Any = _
+
+    private[this] var grpcStatus: Status = _
+    private[this] var trailers: Metadata = _
+    private[this] var endTimestamp = 0L
 
     override def onHeaders(headers: Metadata): Unit = {}
 
-    override def onMessage(message: Res): Unit = {
+    override def onMessage(message: Any): Unit = {
       if (null != body) {
         throw Status.INTERNAL
           .withDescription("More than one value received for unary call")
@@ -133,13 +146,17 @@ case class GrpcCallAction[Req, Res](
       } else {
         status
       }
-      // run() in Akka threads
-      dispatcher.execute(this)
+
+      // run() in session event loop
+      val eventLoop = session.eventLoop
+      if (!eventLoop.isShutdown) {
+        eventLoop.execute(this)
+      }
     }
 
     override def run(): Unit = {
       val (checkSaveUpdated, checkError) = Check.check(
-        GrpcResponse(body, grpcStatus, trailers),
+        new GrpcResponse(body, grpcStatus, trailers),
         session,
         resolvedChecks,
         // Not using preparedCache because the prepare step is cheap
@@ -153,7 +170,8 @@ case class GrpcCallAction[Req, Res](
       val newSession = if (builder.isSilent) checkSaveUpdated else {
         val withStatus = if (status == KO) checkSaveUpdated.markAsFailed else checkSaveUpdated
         statsEngine.logResponse(
-          withStatus,
+          withStatus.scenario,
+          withStatus.groups,
           fullRequestName,
           startTimestamp = startTimestamp,
           endTimestamp = endTimestamp,
@@ -165,6 +183,14 @@ case class GrpcCallAction[Req, Res](
       }
 
       def dump = {
+        val bodyParsed = if (null == body) null
+        else if (notParsed) {
+          // does not support runtime change of logger level
+          val rawBytes = body.asInstanceOf[Array[Byte]]
+          builder.method.parseResponse(new ByteArrayInputStream(rawBytes))
+        } else {
+          body.asInstanceOf[Res]
+        }
         StringBuilderPool.DEFAULT
           .get()
           .append(Eol)
@@ -172,14 +198,13 @@ case class GrpcCallAction[Req, Res](
           .appendWithEol("Request:")
           .appendWithEol(s"$fullRequestName: $status ${errorMessage.getOrElse("")}")
           .appendWithEol("=========================")
-          .appendWithEol("Session:")
-          .appendWithEol(session)
+          .appendSession(session)
           .appendWithEol("=========================")
           .appendWithEol("gRPC request:")
           .appendRequest(payload, headers)
           .appendWithEol("=========================")
           .appendWithEol("gRPC response:")
-          .appendResponse(body, grpcStatus, trailers)
+          .appendResponse(bodyParsed, grpcStatus, trailers)
           .append("<<<<<<<<<<<<<<<<<<<<<<<<<")
           .toString
       }
@@ -193,6 +218,24 @@ case class GrpcCallAction[Req, Res](
       logger.trace(dump)
 
       next ! newSession
+    }
+  }
+
+}
+
+object GrpcCallAction {
+
+  object ByteArrayMarshaller extends Marshaller[Array[Byte]] {
+    override def stream(value: Array[Byte]): InputStream = new ByteArrayInputStream(value)
+    override def parse(stream: InputStream): Array[Byte] = {
+      val size = stream match {
+        case knownLength: KnownLength => knownLength.available()
+        case _ => -1
+      }
+      new Streamable.Bytes {
+        def inputStream(): InputStream = stream
+        override def length: Long = size.toLong
+      }.toByteArray()
     }
   }
 

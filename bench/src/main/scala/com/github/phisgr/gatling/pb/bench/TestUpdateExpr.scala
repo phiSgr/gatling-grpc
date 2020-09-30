@@ -2,6 +2,7 @@ package com.github.phisgr.gatling.pb.bench
 
 import java.util.concurrent.TimeUnit
 
+import com.github.phisgr.gatling.forToMatch
 import com.github.phisgr.gatling.grpc.Predef._
 import com.github.phisgr.gatling.javapb._
 import com.github.phisgr.gatling.pb.Test
@@ -36,13 +37,23 @@ class TestUpdateExpr {
   }
 
   @Benchmark
-  def lambdaSimpleExprJava(): Validation[Test.SimpleMessage] = {
-    SimpleExprJavaLambda(Session1)
+  def forSimpleExpr(): Validation[Test.SimpleMessage] = {
+    SimpleExprFor(Session1)
   }
 
   @Benchmark
-  def lambdaComplexExprJava(): Validation[Test.ComplexMessage] = {
-    ComplexExprJavaLambda(Session1)
+  def forComplexExpr(): Validation[Test.ComplexMessage] = {
+    ComplexExprFor(Session1)
+  }
+
+  @Benchmark
+  def matchComplexExpr(): Validation[Test.ComplexMessage] = {
+    ComplexExprMatch(Session1)
+  }
+
+  @Benchmark
+  def matchSimpleExpr(): Validation[Test.SimpleMessage] = {
+    SimpleExprMatch(Session1)
   }
 }
 
@@ -55,7 +66,7 @@ object TestUpdateExpr {
     Test.SimpleMessage.getDefaultInstance
       .update(_.setS)($("name"))
 
-  private val SimpleExprJavaLambda: Expression[Test.SimpleMessage] = { s: Session =>
+  private val SimpleExprFor: Expression[Test.SimpleMessage] = { s: Session =>
     for {
       name <- s("name").validate[String]
     } yield {
@@ -65,9 +76,21 @@ object TestUpdateExpr {
     }
   }
 
+  private val SimpleExprMatch: Expression[Test.SimpleMessage] = { s: Session =>
+    forToMatch {
+      for {
+        name <- s("name").validate[String]
+      } yield {
+        val builder = Test.SimpleMessage.newBuilder()
+        builder.setS(name)
+        builder.build()
+      }
+    }
+  }
+
   private val ComplexExpr = ComplexMessage.defaultInstance.updateExpr(
     _.m.s :~ $("name"),
-    _.i :~ $("count"),
+    _.i :~ $("count")
   )
 
   private val ComplexExprJava: Expression[Test.ComplexMessage] =
@@ -75,7 +98,7 @@ object TestUpdateExpr {
       .update(_.getMBuilder.setS)($("name"))
       .update(_.setI)($("count"))
 
-  private val ComplexExprJavaLambda: Expression[Test.ComplexMessage] = { s: Session =>
+  private val ComplexExprFor: Expression[Test.ComplexMessage] = { s: Session =>
     for {
       name <- s("name").validate[String]
       count <- s("count").validate[Int]
@@ -87,13 +110,26 @@ object TestUpdateExpr {
     }
   }
 
+  private val ComplexExprMatch: Expression[Test.ComplexMessage] = { s: Session =>
+    forToMatch {
+      for {
+        name <- s("name").validate[String]
+        count <- s("count").validate[Int]
+      } yield {
+        val builder = Test.ComplexMessage.newBuilder()
+        builder.getMBuilder.setS(name)
+        builder.setI(count)
+        builder.build()
+      }
+    }
+  }
+
   private val Session1 = Session(
     scenario = "Scenario",
     userId = 1L,
-    attributes = Map(
-      "name" -> "Asdf Qwer",
-      "count" -> 123
-    ),
-    startDate = System.currentTimeMillis()
+    eventLoop = null // irrelevant in this test
+  ).setAll(
+    "name" -> "Asdf Qwer",
+    "count" -> 123
   )
 }

@@ -3,7 +3,7 @@ val commonSettings = Seq(
   scalaVersion := "2.12.10"
 )
 
-val gatlingVersion = "3.3.1"
+val gatlingVersion = "3.4.0"
 val gatlingCore = "io.gatling" % "gatling-core" % gatlingVersion
 
 val publishSettings = {
@@ -24,7 +24,7 @@ lazy val root = (project in file("."))
   .settings(publishSettings: _*)
   .settings(
     name := "gatling-grpc",
-    version := "0.8.2",
+    version := "0.9.0",
     inConfig(Test)(sbtprotoc.ProtocPlugin.protobufConfigSettings),
     PB.targets in Test := Seq(
       scalapb.gen() -> (sourceManaged in Test).value
@@ -33,6 +33,7 @@ lazy val root = (project in file("."))
       "-language:existentials",
       "-language:implicitConversions",
       "-language:higherKinds",
+      "-Xlint",
     ),
     libraryDependencies ++= Seq(
       "io.grpc" % "grpc-netty" % scalapb.compiler.Version.grpcJavaVersion,
@@ -42,6 +43,19 @@ lazy val root = (project in file("."))
       "io.gatling.highcharts" % "gatling-charts-highcharts" % gatlingVersion % "test",
       "io.gatling" % "gatling-test-framework" % gatlingVersion % "test",
       "org.scalatest" %% "scalatest" % "3.0.8" % "test",
+    ),
+  )
+  .dependsOn(macroSub % "compile-internal")
+
+lazy val macroSub = (project in file("macro"))
+  .settings(commonSettings: _*)
+  .settings(
+    name := "macro",
+    libraryDependencies ++= Seq(
+      gatlingCore,
+    ),
+    scalacOptions ++= Seq(
+      "-language:experimental.macros",
     ),
   )
 
@@ -85,3 +99,4 @@ lazy val bench = (project in file("bench"))
       scalapb.gen() -> (sourceManaged in Compile).value
     ),
   )
+  .dependsOn(macroSub % "compile-internal")

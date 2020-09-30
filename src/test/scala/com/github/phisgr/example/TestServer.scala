@@ -1,27 +1,52 @@
 package com.github.phisgr.example
 
-import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, TimeUnit}
 
-import com.github.phisgr.example.greet._
+import com.github.phisgr.example.chat._
 import com.github.phisgr.example.util._
+import com.google.common.collect.Sets
+import com.google.protobuf.empty.Empty
 import com.typesafe.scalalogging.StrictLogging
 import io.grpc._
 import io.grpc.health.v1.health.HealthCheckResponse.ServingStatus.SERVING
 import io.grpc.health.v1.health.HealthGrpc.Health
 import io.grpc.health.v1.health.{HealthCheckRequest, HealthCheckResponse, HealthGrpc}
-import io.grpc.stub.StreamObserver
+import io.grpc.stub.{ServerCallStreamObserver, StreamObserver}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 import scala.util.{Random, Try}
 
 object TestServer extends StrictLogging {
   def startServer(): Server = {
 
     val accounts: collection.concurrent.Map[String, String] = new ConcurrentHashMap[String, String]().asScala
+    val listeners = Sets.newConcurrentHashSet[ServerCallStreamObserver[ChatMessage]]()
+    val messages = new LinkedBlockingQueue[ChatMessage]()
 
-    val greetService = new GreetServiceGrpc.GreetService {
-      override def greet(request: HelloWorld) = Future.fromTry(Try {
+    {
+      val thread = new Thread({ () =>
+        while (true) {
+          val message = messages.take()
+          listeners.forEach { listener =>
+            if (!listener.isCancelled) {
+              try {
+                listener.onNext(message)
+              } catch {
+                case NonFatal(e) =>
+                  logger.warn("onNext failed", e)
+              }
+            }
+          }
+        }
+      })
+      thread.setDaemon(true)
+      thread.start()
+    }
+
+    val greetService: ChatServiceGrpc.ChatService = new ChatServiceGrpc.ChatService {
+      override def greet(request: GreetRequest): Future[ChatMessage] = Future.fromTry(Try {
         val token = Option(TokenContextKey.get).getOrElse {
           val trailers = new Metadata()
           trailers.put(ErrorResponseKey, CustomError("You are not authenticated!"))
@@ -30,10 +55,10 @@ object TestServer extends StrictLogging {
 
         val username = request.username
         if (!accounts.get(username).contains(token)) throw Status.PERMISSION_DENIED.asException()
-        ChatMessage(username = username, data = s"Server says: Hello ${request.name}!")
+        ChatMessage(username = username, data = s"Server says: Hello ${request.name}!", time = System.currentTimeMillis())
       })
 
-      override def register(request: RegisterRequest) = Future.fromTry(Try {
+      override def register(request: RegisterRequest): Future[RegisterResponse] = Future.fromTry(Try {
         val token = new Random().alphanumeric.take(10).mkString
         val success = accounts.putIfAbsent(request.username, token).isEmpty
 
@@ -48,13 +73,43 @@ object TestServer extends StrictLogging {
           throw Status.ALREADY_EXISTS.asException(trailers)
         }
       })
+
+      override def chat(responseObserver: StreamObserver[ChatMessage]): StreamObserver[ChatMessage] = {
+        addObserver(responseObserver)
+        new StreamObserver[ChatMessage] {
+          override def onNext(message: ChatMessage): Unit = {
+            messages.put(message)
+          }
+          override def onError(t: Throwable): Unit = {
+            listeners.remove(responseObserver)
+            logger.warn("onError called", t)
+          }
+          override def onCompleted(): Unit = {
+            listeners.remove(responseObserver)
+            responseObserver.onCompleted()
+          }
+        }
+      }
+
+      override def listen(request: Empty, responseObserver: StreamObserver[ChatMessage]): Unit = {
+        addObserver(responseObserver)
+      }
+
+      private def addObserver(responseObserver: StreamObserver[ChatMessage]): Unit = {
+        val observer = responseObserver.asInstanceOf[ServerCallStreamObserver[ChatMessage]]
+        listeners.add(observer)
+        observer.setOnCancelHandler { () =>
+          listeners.remove(observer)
+        }
+      }
     }
 
     // normally, it just adds the "token" header, if any, to the context
     // but for demo purpose, it fails the call with 0.001% chance
     val interceptor = new ServerInterceptor {
       override def interceptCall[ReqT, RespT](
-        call: ServerCall[ReqT, RespT], headers: Metadata,
+        call: ServerCall[ReqT, RespT],
+        headers: Metadata,
         next: ServerCallHandler[ReqT, RespT]
       ): ServerCall.Listener[ReqT] = {
         if (new Random().nextInt(100000) == 0) {
@@ -73,7 +128,7 @@ object TestServer extends StrictLogging {
 
     val port = 8080
     val server = ServerBuilder.forPort(port)
-      .addService(GreetServiceGrpc.bindService(greetService, scala.concurrent.ExecutionContext.global))
+      .addService(ChatServiceGrpc.bindService(greetService, scala.concurrent.ExecutionContext.global))
       .intercept(interceptor)
       .build.start
     logger.info(s"Server started, listening on $port")

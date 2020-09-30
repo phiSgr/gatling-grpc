@@ -1,6 +1,6 @@
 package com.github.phisgr.gatling.grpc.check
 
-import io.gatling.commons.validation.{SuccessWrapper, safely}
+import io.gatling.commons.validation.{SuccessWrapper, Validation, safely}
 import io.gatling.core.check._
 import io.gatling.core.session.{Expression, ExpressionSuccessWrapper}
 
@@ -11,18 +11,17 @@ private[gatling] object ResponseExtract {
 
     def extract(prepared: T): Option[X]
 
-    override final def apply(prepared: T) = safely() {
+    override final def apply(prepared: T): Validation[Option[X]] = safely() {
       extract(prepared).success
     }
   }
 
   case class SingleExtractor[T, X](f: T => Option[X]) extends ResponseExtractor[T, X] {
     override def extract(prepared: T) = f(prepared)
-
     override val arity = "find"
   }
 
-  def extract[T, X](f: T => Option[X]): ValidatorCheckBuilder[ResponseExtract, T, X] = ValidatorCheckBuilder(
+  def extract[T, X](f: T => Option[X]): FindCheckBuilder[ResponseExtract, T, X] = new DefaultFindCheckBuilder(
     displayActualValue = true,
     extractor = SingleExtractor(f).expressionSuccess
   )
@@ -61,6 +60,13 @@ private[gatling] object ResponseExtract {
       specializer = GrpcCheck(_, GrpcCheck.Value)
     ) {
       override protected def preparer: Preparer[GrpcResponse[Res], Res] = _.validation
+    }
+
+  def streamMaterializer[Res]: CheckMaterializer[ResponseExtract, StreamCheck[Res], Res, Res] =
+    new CheckMaterializer[ResponseExtract, StreamCheck[Res], Res, Res](
+      specializer = StreamCheck(_, GrpcCheck.Value)
+    ) {
+      override protected def preparer: Preparer[Res, Res] = _.success
     }
 }
 

@@ -5,12 +5,13 @@ import io.grpc.{Metadata, Status}
 
 import scala.annotation.unchecked.uncheckedVariance
 
-case class GrpcResponse[+T](
-  private val res: T, // can be null if status is not OK
-  status: Status,
-  trailers: Metadata
+class GrpcResponse[+T](
+  // can be null if status is not OK, or in GrpcStreamEnd
+  res: T,
+  val status: Status,
+  val trailers: Metadata
 ) {
-  private var _validation: Validation[T@uncheckedVariance] = _
+  private[this] var _validation: Validation[T@uncheckedVariance] = _
 
   // Hand-rolling lazy val because lazy is thread-safe
   def validation: Validation[T] = {
@@ -24,6 +25,10 @@ case class GrpcResponse[+T](
     }
     _validation
   }
+}
+
+object GrpcResponse {
+  type GrpcStreamEnd = GrpcResponse[Null]
 }
 
 class SomeWrapper[T](val value: T) extends AnyVal {

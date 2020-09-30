@@ -2,8 +2,9 @@ package com.github.phisgr.gatling.grpc
 
 import com.github.phisgr.gatling.grpc.protocol.GrpcProtocol
 import com.github.phisgr.gatling.grpc.request.Grpc
+import com.github.phisgr.gatling.grpc.util.wrongTypeMessage
 import io.gatling.commons.NotNothing
-import io.gatling.commons.validation.{Failure, Success}
+import io.gatling.commons.validation.Success
 import io.gatling.core.session.Expression
 import io.gatling.core.session.el.ElMessages
 import io.grpc.{ManagedChannelBuilder => MCB}
@@ -27,7 +28,6 @@ trait GrpcDsl {
   def $[T: ClassTag : NotNothing](name: String): Expression[T] = s => s.attributes.get(name) match {
     case Some(t: T) => Success(t)
     case None => ElMessages.undefinedSessionAttribute(name)
-    case Some(t) => Failure(s"Value $t is of type ${t.getClass.getName}, " +
-      s"expected ${implicitly[ClassTag[T]].runtimeClass.getName}")
+    case Some(value) => wrongTypeMessage[T](value)
   }
 }

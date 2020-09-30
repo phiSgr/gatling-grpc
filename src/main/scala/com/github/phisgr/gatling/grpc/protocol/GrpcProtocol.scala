@@ -20,16 +20,17 @@ object GrpcProtocol extends StrictLogging {
 
   type WarmUp = (MethodDescriptor[T, _], T) forSome {type T}
 
+  private[gatling] object EmptyMarshaller extends Marshaller[Unit] {
+    override def stream(value: Unit): InputStream = new ByteArrayInputStream(Array())
+    override def parse(stream: InputStream): Unit = {}
+  }
+
   private[gatling] def defaultWarmUp: WarmUp = {
-    val emptyMarshaller = new Marshaller[Unit] {
-      override def stream(value: Unit): InputStream = new ByteArrayInputStream(Array())
-      override def parse(stream: InputStream): Unit = {}
-    }
     val method = MethodDescriptor.newBuilder()
       .setFullMethodName("grpc.health.v1.Health/Check")
       .setType(MethodDescriptor.MethodType.UNARY)
-      .setRequestMarshaller(emptyMarshaller)
-      .setResponseMarshaller(emptyMarshaller)
+      .setRequestMarshaller(EmptyMarshaller)
+      .setResponseMarshaller(EmptyMarshaller)
       .build()
     (method, ())
   }
@@ -39,17 +40,19 @@ object GrpcProtocol extends StrictLogging {
   class GrpcComponent private(
     channelBuilder: ManagedChannelBuilder[_],
     shareChannel: Boolean,
-    channelAttributeName: String
+    channelAttributeName: String,
+    private[gatling] val noParsing: Boolean
   ) extends ProtocolComponents {
-    private val channel = if (shareChannel) channelBuilder.build() else null
+    private[this] val channel = if (shareChannel) channelBuilder.build() else null
 
     def this(
       channelBuilder: ManagedChannelBuilder[_],
       shareChannel: Boolean,
       id: Option[String],
-      warmUp: Option[WarmUp]
+      warmUp: Option[WarmUp],
+      noParsing: Boolean
     ) {
-      this(channelBuilder, shareChannel, id.fold(DefaultChannelAttributeName)(DefaultChannelAttributeName + "." + _))
+      this(channelBuilder, shareChannel, id.fold(DefaultChannelAttributeName)(DefaultChannelAttributeName + "." + _), noParsing)
       warmUp.filter(_ => !warmedUp).foreach { case (method, req) =>
         logger.info(s"Making warm up call with method ${method.getFullMethodName}")
         var tempChannel: ManagedChannel = null
@@ -81,7 +84,7 @@ object GrpcProtocol extends StrictLogging {
       session.set(channelAttributeName, channelBuilder.build())
     }
 
-    override val onExit = { s =>
+    override val onExit: Session => Unit = { s =>
       s(channelAttributeName).asOption[ManagedChannel].foreach(_.shutdownNow())
     }
   }
@@ -98,22 +101,30 @@ object GrpcProtocol extends StrictLogging {
   }
 }
 
-import GrpcProtocol._
-
 case class GrpcProtocol(
   private val channelBuilder: ManagedChannelBuilder[_],
   private val _shareChannel: Boolean = false,
-  private val warmUp: Option[WarmUp] = Some(GrpcProtocol.defaultWarmUp)
+  private val warmUp: Option[GrpcProtocol.WarmUp] = Some(GrpcProtocol.defaultWarmUp),
+  private val noParsing: Boolean = true
 ) extends Protocol {
+
+  import GrpcProtocol._
+
   def shareChannel: GrpcProtocol = copy(_shareChannel = true)
 
   def disableWarmUp: GrpcProtocol = copy(warmUp = None)
+
+  /**
+   * By default, in a gRPC unary call, if no checks inspect the response body, the body is ignored.
+   * This option forces the parsing.
+   */
+  def forceParsing: GrpcProtocol = copy(noParsing = false)
 
   def warmUpCall[T](method: MethodDescriptor[T, _], req: T): GrpcProtocol =
     copy(warmUp = Some((method, req)))
 
   private def createComponents(id: Option[String]): GrpcComponent = {
-    new GrpcComponent(channelBuilder, _shareChannel, id, warmUp)
+    new GrpcComponent(channelBuilder, _shareChannel, id, warmUp, noParsing)
   }
 
   private[gatling] lazy val overridingKey = new ProtocolKey[GrpcProtocol, GrpcComponent] with StrictLogging {

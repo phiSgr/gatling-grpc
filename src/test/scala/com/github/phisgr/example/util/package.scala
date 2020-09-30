@@ -1,6 +1,6 @@
 package com.github.phisgr.example
 
-import com.github.phisgr.example.greet.CustomError
+import com.github.phisgr.example.chat.CustomError
 import io.grpc.{Context, Metadata}
 import scalapb.grpc.ProtoUtils
 

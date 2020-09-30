@@ -2,10 +2,12 @@ package com.github.phisgr.gatling.grpc;
 
 import io.grpc.ClientCall;
 import io.grpc.Metadata;
+import io.grpc.Status;
 import io.grpc.stub.ClientCalls;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 /**
@@ -16,12 +18,13 @@ public class Reflections {
     private static final MethodHandle metadataName;
     private static final MethodHandle metadataValue;
 
+    public static final Status SHUTDOWN_NOW_STATUS;
+
     static {
         try {
             cancelThrow = unreflectMethod(
-                    ClientCalls.class.getDeclaredMethod(
-                            "cancelThrow", ClientCall.class, Throwable.class
-                    ));
+                    ClientCalls.class.getDeclaredMethod("cancelThrow", ClientCall.class, Throwable.class)
+            );
             metadataName = unreflectMethod(
                     Metadata.class.getDeclaredMethod("name", int.class)
             );
@@ -29,7 +32,6 @@ public class Reflections {
             try {
                 value = unreflectMethod(
                         Metadata.class.getDeclaredMethod("valueAsBytes", int.class)
-
                 );
             } catch (NoSuchMethodException e) {
                 value = unreflectMethod(
@@ -37,6 +39,10 @@ public class Reflections {
                 );
             }
             metadataValue = value;
+            Field shutdownNowStatusField = Class.forName("io.grpc.internal.ManagedChannelImpl")
+                    .getDeclaredField("SHUTDOWN_NOW_STATUS");
+            shutdownNowStatusField.setAccessible(true);
+            SHUTDOWN_NOW_STATUS = (Status) shutdownNowStatusField.get(null);
         } catch (Throwable e) {
             throw new IllegalStateException(e);
         }
