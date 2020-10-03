@@ -9,8 +9,10 @@ import com.github.phisgr.gatling.pb.Test
 import com.github.phisgr.gatling.pb.test._
 import io.gatling.commons.validation.Validation
 import io.gatling.core.session.{Expression, Session}
-import org.openjdk.jmh.annotations.{Benchmark, OutputTimeUnit}
+import org.openjdk.jmh.annotations.{Benchmark, Fork, OutputTimeUnit}
 
+// JVM args from io.gatling.sbt.utils.PropertyUtils.DefaultJvmArgs
+@Fork(jvmArgsAppend = Array("-XX:MaxInlineLevel=20", "-XX:MaxTrivialSize=12"))
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 class TestUpdateExpr {
 
