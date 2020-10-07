@@ -1,34 +1,30 @@
 package com.github.phisgr.gatling.grpc.action
 
-import java.io.{ByteArrayInputStream, InputStream}
+import java.io.ByteArrayInputStream
 
 import com.github.phisgr.gatling.forToMatch
 import com.github.phisgr.gatling.grpc.ClientCalls
 import com.github.phisgr.gatling.grpc.check.{GrpcCheck, GrpcResponse, StatusExtract}
-import com.github.phisgr.gatling.grpc.protocol.GrpcProtocol
 import com.github.phisgr.gatling.grpc.request.Call
 import com.github.phisgr.gatling.grpc.util.GrpcStringBuilder
 import io.gatling.commons.stats.{KO, OK}
 import io.gatling.commons.util.Clock
 import io.gatling.commons.util.StringHelper.Eol
 import io.gatling.commons.validation.Validation
-import io.gatling.core.action.{Action, RequestAction}
+import io.gatling.core.action.Action
 import io.gatling.core.check.Check
 import io.gatling.core.session.{Expression, Session}
 import io.gatling.core.stats.StatsEngine
 import io.gatling.core.structure.ScenarioContext
-import io.gatling.core.util.NameGen
 import io.gatling.netty.util.StringBuilderPool
 import io.grpc.MethodDescriptor.Marshaller
 import io.grpc._
-
-import scala.reflect.io.Streamable
 
 class GrpcCallAction[Req, Res](
   builder: GrpcCallActionBuilder[Req, Res],
   ctx: ScenarioContext,
   override val next: Action
-) extends Call(ctx, builder.callAttributes) with RequestAction with NameGen {
+) extends Call[Req, Res](ctx, builder.callAttributes, builder.method) {
 
   private[this] val throttler = ctx.coreComponents.throttler match {
     // not calling .filter to not make ctx a field
@@ -46,32 +42,23 @@ class GrpcCallAction[Req, Res](
     StatusExtract.DefaultCheck :: builder.checks
   }).asInstanceOf[List[GrpcCheck[Any]]]
 
-  private[this] val notParsed = component.noParsing && builder.checks.forall(_.scope != GrpcCheck.Value)
+  override protected def needParsed: Boolean =
+    builder.checks.exists(_.scope == GrpcCheck.Value) ||
+      // If trace is enabled, we always log the response. No need to delay parsing
+      logger.underlying.isTraceEnabled
+  override protected def mayNeedDelayedParsing: Boolean = logger.underlying.isDebugEnabled
 
-  private[this] val method = (if (notParsed) {
-    val mayLog = logger.underlying.isDebugEnabled || logger.underlying.isTraceEnabled
-    val responseMarshaller = if (mayLog) {
-      GrpcCallAction.ByteArrayMarshaller
-    } else {
-      GrpcProtocol.EmptyMarshaller
-    }
-    builder.method.toBuilder(
-      builder.method.getRequestMarshaller,
-      responseMarshaller
-    ).build()
-  } else {
-    builder.method
-  }).asInstanceOf[MethodDescriptor[Req, Any]]
+  // For delayed parsing
+  private[this] val responseMarshaller: Marshaller[Res] =
+    if (lazyParseMethod eq builder.method) null else builder.method.getResponseMarshaller
 
   private def run(
-    channel: Channel,
+    call: ClientCall[Req, Any],
     payload: Req,
     session: Session,
     resolvedRequestName: String,
-    callOptions: CallOptions,
     headers: Metadata
   ): Unit = {
-    val call = channel.newCall(method, callOptions)
     ClientCalls.asyncUnaryRequestCall(
       call, headers, payload,
       new ContinuingListener(session, resolvedRequestName, clock.nowMillis, headers, payload),
@@ -85,13 +72,13 @@ class GrpcCallAction[Req, Res](
       resolvedPayload <- builder.payload(session)
       callOptions <- callOptions(session)
     } yield {
-      val channel = component.getChannel(session)
+      val call = newCall(session, callOptions)
       if (throttler ne null) {
         throttler.throttle(session.scenario, () =>
-          run(channel, resolvedPayload, session, resolvedRequestName = requestName, callOptions, headers)
+          run(call, resolvedPayload, session, resolvedRequestName = requestName, headers)
         )
       } else {
-        run(channel, resolvedPayload, session, resolvedRequestName = requestName, callOptions, headers)
+        run(call, resolvedPayload, session, resolvedRequestName = requestName, headers)
       }
     }
   }
@@ -120,7 +107,8 @@ class GrpcCallAction[Req, Res](
     payload: Req
   ) extends ClientCall.Listener[Any] with Runnable {
     // null if failed;
-    // Res if checks value; Array[Byte] if we may need logging; Unit if neither
+    // Res if we need the value in checks or trace logging;
+    // Array[Byte] if we may need logging; Unit if neither
     private[this] var body: Any = _
 
     private[this] var grpcStatus: Status = _
@@ -184,10 +172,10 @@ class GrpcCallAction[Req, Res](
 
       def dump = {
         val bodyParsed = if (null == body) null
-        else if (notParsed) {
+        else if (responseMarshaller ne null) {
           // does not support runtime change of logger level
           val rawBytes = body.asInstanceOf[Array[Byte]]
-          builder.method.parseResponse(new ByteArrayInputStream(rawBytes))
+          responseMarshaller.parse(new ByteArrayInputStream(rawBytes))
         } else {
           body.asInstanceOf[Res]
         }
@@ -218,24 +206,6 @@ class GrpcCallAction[Req, Res](
       logger.trace(dump)
 
       next ! newSession
-    }
-  }
-
-}
-
-object GrpcCallAction {
-
-  object ByteArrayMarshaller extends Marshaller[Array[Byte]] {
-    override def stream(value: Array[Byte]): InputStream = new ByteArrayInputStream(value)
-    override def parse(stream: InputStream): Array[Byte] = {
-      val size = stream match {
-        case knownLength: KnownLength => knownLength.available()
-        case _ => -1
-      }
-      new Streamable.Bytes {
-        def inputStream(): InputStream = stream
-        override def length: Long = size.toLong
-      }.toByteArray()
     }
   }
 

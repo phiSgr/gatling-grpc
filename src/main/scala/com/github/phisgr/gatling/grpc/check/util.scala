@@ -31,6 +31,6 @@ object GrpcResponse {
   type GrpcStreamEnd = GrpcResponse[Null]
 }
 
-class SomeWrapper[T](val value: T) extends AnyVal {
+class SomeWrapper[T](private val value: T) extends AnyVal {
   def some: Some[T] = Some(value)
 }

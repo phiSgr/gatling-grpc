@@ -13,7 +13,7 @@ case class GrpcCheck[-T](wrapped: Check[GrpcResponse[T]@uncheckedVariance], scop
   override def check(response: GrpcResponse[T], session: Session, cache: JMap[Any, Any]): Validation[CheckResult] =
     wrapped.check(response, session, cache)
 
-  def checksStatus = scope == Status
+  def checksStatus: Boolean = scope == Status
 }
 
 object GrpcCheck {

@@ -2,14 +2,13 @@ package com.github.phisgr.gatling.grpc.stream
 
 import io.gatling.core.session.Session
 
-
 trait TimestampExtractor[-Res] {
   /**
    * @param session         The session of the streaming branch.
    * @param message         The message received from the streaming call
    * @param streamStartTime The start time of this stream
    * @return The "start time" of this message,
-   *         or [[TimestampExtractor.IgnoreMessage]] if this message should be ignored.
+   *         or [[TimestampExtractor.IgnoreMessage]] if this message should not be logged.
    */
   def extractTimestamp(session: Session, message: Res, streamStartTime: Long): Long
 }

@@ -11,8 +11,18 @@ import io.grpc.{InternalMetadata, Metadata, Status}
 import scala.reflect.ClassTag
 
 package object util {
+  def toProtoString(message: Any): String = {
+    message match {
+      case scalaPbObject: scalapb.GeneratedMessage =>
+        scalaPbObject.toProtoString
+      case _ => message.toString // for Java Proto messages, this is the proto string
+    }
+  }
 
   implicit private[gatling] class GrpcStringBuilder(val buff: JStringBuilder) extends AnyVal {
+    def appendMessage(message: Any): JStringBuilder =
+      buff.appendWithEol(toProtoString(message))
+
     def appendWithEol(s: String): JStringBuilder =
       buff.append(s).append(Eol)
 
@@ -20,14 +30,9 @@ package object util {
       buff.append(o).append(Eol)
 
     def appendRequest(payload: Any, headers: Metadata): JStringBuilder = {
-      val payloadString = payload match {
-        case scalaPbObject: scalapb.GeneratedMessage =>
-          scalaPbObject.toProtoString
-        case _ => payload.toString // for Java Proto messages, this is the proto string
-      }
       appendHeaders(headers)
       appendWithEol("payload=")
-      appendWithEol(payloadString)
+      appendMessage(payload)
     }
 
     def appendSession(session: Session): JStringBuilder = {
@@ -39,17 +44,10 @@ package object util {
       appendStatus(status)
       appendTrailers(trailers)
 
-      val bodyString = body match {
-        case _ if null == body || !status.isOk =>
-          null
-        case scalaPbObject: scalapb.GeneratedMessage =>
-          scalaPbObject.toProtoString
-        case _ => body.toString // for Java Proto messages, this is the proto string
-      }
-      if (bodyString ne null) {
+      if (null != body && status.isOk) {
         buff
           .appendWithEol("body=")
-          .appendWithEol(bodyString)
+          .appendMessage(body)
       }
       buff
     }

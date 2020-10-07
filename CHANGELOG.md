@@ -1,3 +1,11 @@
+#### 0.10.0
+CHANGE OF BEHAVIOUR: the timestamp extractor is run **BEFORE**
+the checks are run. This makes it easier to detect "first" messages in a stream.
+
+Improves streaming logging, mimics Gatling WebSocket wordings.
+
+Lazy parsing for streaming calls.
+
 #### 0.9.0
 Upgrades to Gatling 3.4.0.
 

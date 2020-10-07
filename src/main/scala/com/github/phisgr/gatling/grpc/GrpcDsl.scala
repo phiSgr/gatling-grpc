@@ -21,9 +21,9 @@ trait GrpcDsl {
   def managedChannelBuilder(name: String, port: Int): ManagedChannelBuilder =
     MCB.forAddress(name, port).asInstanceOf[ManagedChannelBuilder].directExecutor()
 
-  def grpc(channelBuilder: MCB[_]) = GrpcProtocol(channelBuilder)
+  def grpc(channelBuilder: MCB[_]): GrpcProtocol = GrpcProtocol(channelBuilder)
 
-  def grpc(requestName: Expression[String]) = Grpc(requestName)
+  def grpc(requestName: Expression[String]): Grpc = Grpc(requestName)
 
   def $[T: ClassTag : NotNothing](name: String): Expression[T] = s => s.attributes.get(name) match {
     case Some(t: T) => Success(t)

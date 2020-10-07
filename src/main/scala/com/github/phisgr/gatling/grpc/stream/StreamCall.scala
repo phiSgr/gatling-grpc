@@ -3,7 +3,7 @@ package com.github.phisgr.gatling.grpc.stream
 import com.github.phisgr.gatling.grpc.check.GrpcResponse.GrpcStreamEnd
 import com.github.phisgr.gatling.grpc.check.{GrpcResponse, StreamCheck}
 import com.github.phisgr.gatling.grpc.stream.StreamCall._
-import com.github.phisgr.gatling.grpc.util.GrpcStringBuilder
+import com.github.phisgr.gatling.grpc.util.{GrpcStringBuilder, toProtoString}
 import com.typesafe.scalalogging.StrictLogging
 import io.gatling.commons.stats.{KO, OK}
 import io.gatling.commons.util.StringHelper.Eol
@@ -23,7 +23,7 @@ abstract class StreamCall[Req, Res, State >: ServerStreamState](
   streamName: String,
   initState: State,
   protected var streamSession: Session,
-  val call: ClientCall[Req, Res],
+  val call: ClientCall[Req, Any],
   timestampExtractor: TimestampExtractor[Res],
   combine: SessionCombiner,
   checks: List[StreamCheck[Res]],
@@ -31,21 +31,23 @@ abstract class StreamCall[Req, Res, State >: ServerStreamState](
   statsEngine: StatsEngine
 ) extends StrictLogging {
 
-  protected def ignoreMessage: Boolean = (timestampExtractor eq TimestampExtractor.Ignore) && checks.isEmpty
-
   protected var state: State = initState
   protected var callStartTime: Long = _
 
   logger.info(s"Opening stream '$streamName': Scenario '${streamSession.scenario}', UserId #${streamSession.userId}")
 
-  def onRes(res: Res, receiveTime: Long): Unit = {
+  private[gatling] def onRes(res: Any, receiveTime: Long): Unit = {
+    // res is Unit if
+    // 1. checks are empty &&
+    // 2. timestampExtractor does nothing &&
+    // 3. trace logging is off &&
+    // 4. user does not force parsing
+    val response = res.asInstanceOf[Res]
+
     call.request(1)
 
-    val (newSession, checkError) = Check.check(res, streamSession, checks, preparedCache = null)
-    streamSession = if (checkError.isEmpty) newSession else newSession.markAsFailed
-
     val extractedTime = try {
-      timestampExtractor.extractTimestamp(streamSession, res, callStartTime)
+      timestampExtractor.extractTimestamp(streamSession, response, callStartTime)
     } catch {
       case NonFatal(e) =>
         val message = s"Timestamp extraction crashed ${e.detailedMessage}"
@@ -64,9 +66,17 @@ abstract class StreamCall[Req, Res, State >: ServerStreamState](
         streamSession = streamSession.markAsFailed
         return
     }
+
+    val (newSession, checkError) = Check.check(response, streamSession, checks, preparedCache = null)
+    streamSession = if (checkError.isEmpty) newSession else newSession.markAsFailed
+
     if (extractedTime == TimestampExtractor.IgnoreMessage) {
+      logger.trace(s"Ignored message\n${toProtoString(response)}")
       return
     }
+
+    val status = if (checkError.isEmpty) OK else KO
+    val errorMessage = checkError.map(_.message)
 
     statsEngine.logResponse(
       streamSession.scenario,
@@ -74,10 +84,34 @@ abstract class StreamCall[Req, Res, State >: ServerStreamState](
       requestName = requestName,
       startTimestamp = extractedTime,
       endTimestamp = receiveTime,
-      status = if (checkError.isEmpty) OK else KO,
+      status = status,
       responseCode = None,
-      message = checkError.map(_.message)
+      message = errorMessage
     )
+
+    def dump = {
+      StringBuilderPool.DEFAULT
+        .get()
+        .append(Eol)
+        .appendWithEol(">>>>>>>>>>>>>>>>>>>>>>>>>>")
+        .appendWithEol("Stream Message Check:")
+        .appendWithEol(s"$requestName - $streamName: $status ${errorMessage.getOrElse("")}")
+        .appendWithEol("=========================")
+        .appendSession(streamSession)
+        .appendWithEol("=========================")
+        .appendWithEol("gRPC stream message:")
+        .appendMessage(response)
+        .append("<<<<<<<<<<<<<<<<<<<<<<<<<")
+        .toString
+    }
+
+    if (status == KO) {
+      logger.info(s"Stream response for '$streamName' failed for user ${streamSession.userId}: ${errorMessage.getOrElse("")}")
+      if (!logger.underlying.isTraceEnabled) {
+        logger.debug(dump)
+      }
+    }
+    logger.trace(dump)
   }
 
   def onServerCompleted(grpcStatus: Status, trailers: Metadata, completeTimeMillis: Long): Unit = {
@@ -90,11 +124,17 @@ abstract class StreamCall[Req, Res, State >: ServerStreamState](
     )
     streamSession = newSession
 
+    val status = if (checkError.isEmpty) OK else KO
+    val errorMessage = checkError.map(_.message)
+
     def dump = {
       StringBuilderPool.DEFAULT
         .get()
         .append(Eol)
         .appendWithEol(">>>>>>>>>>>>>>>>>>>>>>>>>>")
+        .appendWithEol("Stream Close:")
+        .appendWithEol(s"$requestName - $streamName: $status ${errorMessage.getOrElse("")}")
+        .appendWithEol("=========================")
         .appendSession(streamSession)
         .appendWithEol("=========================")
         .appendWithEol("gRPC stream completion:")
@@ -103,9 +143,6 @@ abstract class StreamCall[Req, Res, State >: ServerStreamState](
         .append("<<<<<<<<<<<<<<<<<<<<<<<<<")
         .toString
     }
-
-    val status = if (checkError.isEmpty) OK else KO
-    val errorMessage = checkError.map(_.message)
 
     statsEngine.logResponse(
       streamSession.scenario,

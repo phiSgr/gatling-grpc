@@ -15,7 +15,7 @@ class StreamCancelBuilder(requestName: Expression[String], streamName: String, i
         for {
           call <- fetchCall[StreamCall[_, _, _]](streamName, session)
         } yield {
-          logger.info(s"Closing $direction stream '$streamName': Scenario '${session.scenario}', UserId #${session.userId}")
+          logger.info(s"Cancelling $direction stream '$streamName': Scenario '${session.scenario}', UserId #${session.userId}")
           call.cancel(session, next)
         }
       }

@@ -6,14 +6,14 @@ import com.github.phisgr.gatling.grpc.check.StreamCheck
 import com.github.phisgr.gatling.grpc.stream.StreamCall.{Receiving, ServerStreamState}
 import io.gatling.core.session.Session
 import io.gatling.core.structure.ScenarioContext
-import io.grpc._
+import io.grpc.{ClientCall, Metadata, Status}
 
 import scala.util.control.NonFatal
 
 class ServerStreamCall[Req, Res](
   requestName: String,
   streamName: String,
-  call: ClientCall[Req, Res],
+  call: ClientCall[Req, Any],
   headers: Metadata,
   payload: Req,
   ctx: ScenarioContext,
@@ -21,7 +21,8 @@ class ServerStreamCall[Req, Res](
   combine: SessionCombiner,
   startingSession: Session,
   checks: List[StreamCheck[Res]],
-  endChecks: List[StreamCheck[GrpcStreamEnd]]
+  endChecks: List[StreamCheck[GrpcStreamEnd]],
+  ignoreMessage: Boolean
 ) extends StreamCall[Req, Res, ServerStreamState](
   requestName = requestName,
   streamName = streamName,

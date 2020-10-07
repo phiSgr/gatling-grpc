@@ -1,6 +1,5 @@
 package com.github.phisgr.gatling.grpc.protocol
 
-import java.io.{ByteArrayInputStream, InputStream}
 import java.util.UUID
 
 import com.typesafe.scalalogging.StrictLogging
@@ -9,7 +8,6 @@ import io.gatling.core.CoreComponents
 import io.gatling.core.config.GatlingConfiguration
 import io.gatling.core.protocol.{Protocol, ProtocolComponents, ProtocolKey}
 import io.gatling.core.session.{Session, SessionPrivateAttributes}
-import io.grpc.MethodDescriptor.Marshaller
 import io.grpc.stub.ClientCalls
 import io.grpc.{CallOptions, ManagedChannel, ManagedChannelBuilder, MethodDescriptor}
 
@@ -19,11 +17,6 @@ object GrpcProtocol extends StrictLogging {
   private val DefaultChannelAttributeName: String = SessionPrivateAttributes.PrivateAttributePrefix + "grpc.channel"
 
   type WarmUp = (MethodDescriptor[T, _], T) forSome {type T}
-
-  private[gatling] object EmptyMarshaller extends Marshaller[Unit] {
-    override def stream(value: Unit): InputStream = new ByteArrayInputStream(Array())
-    override def parse(stream: InputStream): Unit = {}
-  }
 
   private[gatling] def defaultWarmUp: WarmUp = {
     val method = MethodDescriptor.newBuilder()
@@ -41,7 +34,7 @@ object GrpcProtocol extends StrictLogging {
     channelBuilder: ManagedChannelBuilder[_],
     shareChannel: Boolean,
     channelAttributeName: String,
-    private[gatling] val noParsing: Boolean
+    private[gatling] val lazyParsing: Boolean
   ) extends ProtocolComponents {
     private[this] val channel = if (shareChannel) channelBuilder.build() else null
 
@@ -50,9 +43,9 @@ object GrpcProtocol extends StrictLogging {
       shareChannel: Boolean,
       id: Option[String],
       warmUp: Option[WarmUp],
-      noParsing: Boolean
+      lazyParsing: Boolean
     ) {
-      this(channelBuilder, shareChannel, id.fold(DefaultChannelAttributeName)(DefaultChannelAttributeName + "." + _), noParsing)
+      this(channelBuilder, shareChannel, id.fold(DefaultChannelAttributeName)(DefaultChannelAttributeName + "." + _), lazyParsing)
       warmUp.filter(_ => !warmedUp).foreach { case (method, req) =>
         logger.info(s"Making warm up call with method ${method.getFullMethodName}")
         var tempChannel: ManagedChannel = null
@@ -89,7 +82,7 @@ object GrpcProtocol extends StrictLogging {
     }
   }
 
-  val GrpcProtocolKey = new ProtocolKey[GrpcProtocol, GrpcComponent] {
+  val GrpcProtocolKey: ProtocolKey[GrpcProtocol, GrpcComponent] = new ProtocolKey[GrpcProtocol, GrpcComponent] {
     override def protocolClass: Class[Protocol] = classOf[GrpcProtocol].asInstanceOf[Class[Protocol]]
 
     override def defaultProtocolValue(configuration: GatlingConfiguration): GrpcProtocol =
@@ -105,7 +98,7 @@ case class GrpcProtocol(
   private val channelBuilder: ManagedChannelBuilder[_],
   private val _shareChannel: Boolean = false,
   private val warmUp: Option[GrpcProtocol.WarmUp] = Some(GrpcProtocol.defaultWarmUp),
-  private val noParsing: Boolean = true
+  private val lazyParsing: Boolean = true
 ) extends Protocol {
 
   import GrpcProtocol._
@@ -115,29 +108,30 @@ case class GrpcProtocol(
   def disableWarmUp: GrpcProtocol = copy(warmUp = None)
 
   /**
-   * By default, in a gRPC unary call, if no checks inspect the response body, the body is ignored.
+   * By default, if nothing inspects the response body, the body is ignored.
    * This option forces the parsing.
    */
-  def forceParsing: GrpcProtocol = copy(noParsing = false)
+  def forceParsing: GrpcProtocol = copy(lazyParsing = false)
 
   def warmUpCall[T](method: MethodDescriptor[T, _], req: T): GrpcProtocol =
     copy(warmUp = Some((method, req)))
 
   private def createComponents(id: Option[String]): GrpcComponent = {
-    new GrpcComponent(channelBuilder, _shareChannel, id, warmUp, noParsing)
+    new GrpcComponent(channelBuilder, _shareChannel, id, warmUp, lazyParsing)
   }
 
-  private[gatling] lazy val overridingKey = new ProtocolKey[GrpcProtocol, GrpcComponent] with StrictLogging {
-    override def protocolClass: Class[Protocol] = GrpcProtocolKey.protocolClass
+  private[gatling] lazy val overridingKey: ProtocolKey[GrpcProtocol, GrpcComponent] =
+    new ProtocolKey[GrpcProtocol, GrpcComponent] with StrictLogging {
+      override def protocolClass: Class[Protocol] = GrpcProtocolKey.protocolClass
 
-    override def defaultProtocolValue(configuration: GatlingConfiguration): GrpcProtocol =
-      GrpcProtocolKey.defaultProtocolValue(configuration)
+      override def defaultProtocolValue(configuration: GatlingConfiguration): GrpcProtocol =
+        GrpcProtocolKey.defaultProtocolValue(configuration)
 
-    override def newComponents(coreComponents: CoreComponents): GrpcProtocol => GrpcComponent = { _ =>
-      val id = UUID.randomUUID().toString
-      logger.info(s"Creating a new non-default GrpcComponent with ID $id.")
-      createComponents(id = Some(id))
+      override def newComponents(coreComponents: CoreComponents): GrpcProtocol => GrpcComponent = { _ =>
+        val id = UUID.randomUUID().toString
+        logger.info(s"Creating a new non-default GrpcComponent with ID $id")
+        createComponents(id = Some(id))
+      }
     }
-  }
 
 }

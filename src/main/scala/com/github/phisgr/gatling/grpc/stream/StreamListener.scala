@@ -11,10 +11,10 @@ class StreamListener[Res](
   clock: Clock,
   eventLoop: EventLoop,
   ignoreMessage: Boolean
-) extends ClientCall.Listener[Res] {
+) extends ClientCall.Listener[Any] {
   override def onHeaders(headers: Metadata): Unit = {}
 
-  override def onMessage(message: Res): Unit = {
+  override def onMessage(message: Any): Unit = {
     val receiveTime = clock.nowMillis
     if (ignoreMessage) {
       state.call.request(1)
