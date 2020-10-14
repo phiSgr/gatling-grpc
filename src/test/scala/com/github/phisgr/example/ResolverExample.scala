@@ -1,0 +1,76 @@
+package com.github.phisgr.example
+
+import com.github.phisgr.example.chat.{ChatServiceGrpc, GreetRequest, RegisterRequest}
+import com.github.phisgr.example.util.{ClientSideLoadBalancingResolverFactory, TokenHeaderKey, ports}
+import com.github.phisgr.gatling.grpc.Predef._
+import com.github.phisgr.gatling.grpc.action.GrpcCallAction
+import com.github.phisgr.gatling.pb._
+import org.slf4j.LoggerFactory
+import ch.qos.logback.classic.{Level, Logger}
+// stringToExpression is hidden because we have $ in GrpcDsl
+import io.gatling.core.Predef.{stringToExpression => _, _}
+import io.gatling.core.session.Expression
+
+class ResolverExample extends Simulation {
+  ports.foreach(TestServer.startServer)
+
+  // Although the actions do not support runtime change of logging level
+  // this is done before the actions are built.
+  LoggerFactory.getLogger(classOf[GrpcCallAction[_, _]].getName)
+    .asInstanceOf[Logger]
+    .setLevel(Level.TRACE)
+
+  val grpcConf = grpc(
+    managedChannelBuilder(target = "name.resolver.example")
+      .usePlaintext()
+      .nameResolverFactory(ClientSideLoadBalancingResolverFactory)
+      .defaultLoadBalancingPolicy("round_robin")
+  )
+
+  val greetPayload: Expression[GreetRequest] = GreetRequest(name = "World")
+    .updateExpr(_.username :~ $("username"))
+
+  val s = scenario("Throttle")
+    .feed(csv("usernames.csv").queue)
+    .exec(
+      grpc("Register")
+        .rpc(ChatServiceGrpc.METHOD_REGISTER)
+        .payload(RegisterRequest.defaultInstance.updateExpr(
+          _.username :~ $("username")
+        ))
+        .extract(_.token.some)(_ saveAs "token")
+    )
+    .exitHereIfFailed
+    .repeat(30) {
+      exec(
+        grpc("Success")
+          .rpc(ChatServiceGrpc.METHOD_GREET)
+          .payload(greetPayload)
+          .header(TokenHeaderKey)($("token"))
+          .extract(_.data.split(' ').lift(3).map(_.toInt))(_ saveAs "previousPort")
+      ).exec { session: Session =>
+        val port = session("previousPort").as[Int]
+        val count = session(s"count$port").asOption[Int].getOrElse(0)
+        session.set(s"count$port", count + 1).remove("previousPort")
+      }
+    }
+    .exec { session =>
+      ports.foreach { port =>
+        require(session(s"count$port").as[Int] == 10)
+      }
+      session
+    }
+    .exitHereIfFailed
+    .exec(
+      grpc("Final one")
+        .rpc(ChatServiceGrpc.METHOD_GREET)
+        .payload(greetPayload)
+        .header(TokenHeaderKey)($("token"))
+    )
+
+  setUp(
+    s.inject(atOnceUsers(5))
+  ).protocols(grpcConf).assertions(
+    global.allRequests.count is (31 * 3 + 5)
+  )
+}

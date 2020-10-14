@@ -19,11 +19,13 @@ import scala.util.control.NonFatal
 import scala.util.{Random, Try}
 
 object TestServer extends StrictLogging {
-  def startServer(): Server = {
 
-    val accounts: collection.concurrent.Map[String, String] = new ConcurrentHashMap[String, String]().asScala
-    val listeners = Sets.newConcurrentHashSet[ServerCallStreamObserver[ChatMessage]]()
-    val messages = new LinkedBlockingQueue[ChatMessage]()
+  val accounts: collection.concurrent.Map[String, String] = new ConcurrentHashMap[String, String]().asScala
+  val listeners = Sets.newConcurrentHashSet[ServerCallStreamObserver[ChatMessage]]()
+  val messages = new LinkedBlockingQueue[ChatMessage]()
+
+  def startServer(port: Int = 8080): Server = {
+    val portMessage = if (port == 8080) "" else s"from port $port "
 
     {
       val thread = new Thread({ () =>
@@ -55,7 +57,7 @@ object TestServer extends StrictLogging {
 
         val username = request.username
         if (!accounts.get(username).contains(token)) throw Status.PERMISSION_DENIED.asException()
-        ChatMessage(username = username, data = s"Server says: Hello ${request.name}!", time = System.currentTimeMillis())
+        ChatMessage(username = username, data = s"Server ${portMessage}says: Hello ${request.name}!", time = System.currentTimeMillis())
       })
 
       override def register(request: RegisterRequest): Future[RegisterResponse] = Future.fromTry(Try {
@@ -126,7 +128,6 @@ object TestServer extends StrictLogging {
       }
     }
 
-    val port = 8080
     val server = ServerBuilder.forPort(port)
       .addService(ChatServiceGrpc.bindService(greetService, scala.concurrent.ExecutionContext.global))
       .intercept(interceptor)
