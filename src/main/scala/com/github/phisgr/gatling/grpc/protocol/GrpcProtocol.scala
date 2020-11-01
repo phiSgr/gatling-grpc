@@ -2,19 +2,23 @@ package com.github.phisgr.gatling.grpc.protocol
 
 import java.util.UUID
 
+import com.github.phisgr.gatling.grpc.action.SetDynamicChannelBuilder
 import com.typesafe.scalalogging.StrictLogging
 import io.gatling.commons.util.Throwables._
 import io.gatling.core.CoreComponents
+import io.gatling.core.action.builder.ActionBuilder
 import io.gatling.core.config.GatlingConfiguration
 import io.gatling.core.protocol.{Protocol, ProtocolComponents, ProtocolKey}
 import io.gatling.core.session.{Session, SessionPrivateAttributes}
+import io.gatling.netty.util.Transports
+import io.grpc.netty.NettyChannelBuilder
 import io.grpc.stub.ClientCalls
-import io.grpc.{CallOptions, ManagedChannel, ManagedChannelBuilder, MethodDescriptor}
+import io.grpc.{CallOptions, ClientCall, ManagedChannel, ManagedChannelBuilder, MethodDescriptor}
 
 import scala.util.control.NonFatal
 
 object GrpcProtocol extends StrictLogging {
-  private val DefaultChannelAttributeName: String = SessionPrivateAttributes.PrivateAttributePrefix + "grpc.channel"
+  private[gatling] val DefaultChannelAttributeName: String = SessionPrivateAttributes.PrivateAttributePrefix + "grpc.channel"
 
   type WarmUp = (MethodDescriptor[T, _], T) forSome {type T}
 
@@ -30,27 +34,37 @@ object GrpcProtocol extends StrictLogging {
 
   private[this] var warmedUp = false
 
-  class GrpcComponent private(
-    channelBuilder: ManagedChannelBuilder[_],
+  class GrpcComponent(
+    sharedChannel: ManagedChannel,
     shareChannel: Boolean,
     channelAttributeName: String,
-    private[gatling] val lazyParsing: Boolean
+    private[gatling] val lazyParsing: Boolean,
+    override val onStart: Session => Session
   ) extends ProtocolComponents {
-    private[this] val channel = if (shareChannel) channelBuilder.build() else null
 
     def this(
       channelBuilder: ManagedChannelBuilder[_],
       shareChannel: Boolean,
-      id: Option[String],
+      channelAttributeName: String,
       warmUp: Option[WarmUp],
       lazyParsing: Boolean
     ) {
-      this(channelBuilder, shareChannel, id.fold(DefaultChannelAttributeName)(DefaultChannelAttributeName + "." + _), lazyParsing)
+      this(
+        sharedChannel = if (shareChannel) channelBuilder.build() else null,
+        shareChannel = shareChannel,
+        channelAttributeName = channelAttributeName,
+        lazyParsing = lazyParsing,
+        onStart = if (shareChannel) {
+          Session.Identity
+        } else { session =>
+          session.set(channelAttributeName, channelBuilder.build())
+        }
+      )
       warmUp.filter(_ => !warmedUp).foreach { case (method, req) =>
         logger.info(s"Making warm up call with method ${method.getFullMethodName}")
         var tempChannel: ManagedChannel = null
         try {
-          val warmUpChannel = if (shareChannel) channel else {
+          val warmUpChannel = if (shareChannel) sharedChannel else {
             tempChannel = channelBuilder.build()
             tempChannel
           }
@@ -69,69 +83,122 @@ object GrpcProtocol extends StrictLogging {
       }
     }
 
-    private[gatling] def getChannel(session: Session): ManagedChannel = {
-      if (shareChannel) channel else session(channelAttributeName).as[ManagedChannel]
+    private[gatling] def newCall[Req, Res](session: Session, methodDescriptor: MethodDescriptor[Req, Res], callOptions: CallOptions): ClientCall[Req, Res] = {
+      val channel = if (shareChannel) sharedChannel else session.attributes.get(channelAttributeName) match {
+        case Some(mc: ManagedChannel) => mc
+        case _ => throw new IllegalStateException(
+          s"ManagedChannel not found in attribute '$channelAttributeName' in session: $session. " +
+            "If you are using `dynamicChannel`, you have to `.exec(dynamicProtocol.setChannel)`"
+        )
+      }
+      channel.newCall(methodDescriptor, callOptions)
     }
 
-    override val onStart: Session => Session = if (shareChannel) identity else { session =>
-      session.set(channelAttributeName, channelBuilder.build())
-    }
-
-    override val onExit: Session => Unit = { s =>
-      s(channelAttributeName).asOption[ManagedChannel].foreach(_.shutdownNow())
+    override def onExit: Session => Unit = { session =>
+      session(channelAttributeName).asOption[ManagedChannel].foreach(_.shutdownNow())
     }
   }
 
-  val GrpcProtocolKey: ProtocolKey[GrpcProtocol, GrpcComponent] = new ProtocolKey[GrpcProtocol, GrpcComponent] {
-    override def protocolClass: Class[Protocol] = classOf[GrpcProtocol].asInstanceOf[Class[Protocol]]
+  type Key = ProtocolKey[P, GrpcComponent] forSome {type P <: GrpcProtocol}
 
-    override def defaultProtocolValue(configuration: GatlingConfiguration): GrpcProtocol =
+  val GrpcProtocolKey: Key = new ProtocolKey[StaticGrpcProtocol, GrpcComponent] {
+    override def protocolClass: Class[Protocol] = classOf[StaticGrpcProtocol].asInstanceOf[Class[Protocol]]
+
+    override def defaultProtocolValue(configuration: GatlingConfiguration): StaticGrpcProtocol =
       throw new UnsupportedOperationException()
 
-    override def newComponents(coreComponents: CoreComponents): GrpcProtocol => GrpcComponent = { protocol =>
-      protocol.createComponents(id = None)
+    override def newComponents(coreComponents: CoreComponents): StaticGrpcProtocol => GrpcComponent =
+      _.createComponents(id = None, coreComponents)
+  }
+
+  def setEventLoopGroup(builder: ManagedChannelBuilder[_], coreComponents: CoreComponents): Unit = {
+    builder match {
+      case nettyBuilder: NettyChannelBuilder =>
+        nettyBuilder
+          .eventLoopGroup(coreComponents.eventLoopGroup)
+          .channelFactory(Transports.newSocketChannelFactory(coreComponents.configuration.netty.useNativeTransport))
+      case _ =>
     }
   }
 }
 
-case class GrpcProtocol(
+sealed trait GrpcProtocol extends Protocol {
+  private[gatling] val overridingKey: GrpcProtocol.Key
+}
+
+case class StaticGrpcProtocol(
   private val channelBuilder: ManagedChannelBuilder[_],
   private val _shareChannel: Boolean = false,
   private val warmUp: Option[GrpcProtocol.WarmUp] = Some(GrpcProtocol.defaultWarmUp),
   private val lazyParsing: Boolean = true
-) extends Protocol {
-
+) extends GrpcProtocol {
   import GrpcProtocol._
 
-  def shareChannel: GrpcProtocol = copy(_shareChannel = true)
+  def shareChannel: StaticGrpcProtocol = copy(_shareChannel = true)
 
-  def disableWarmUp: GrpcProtocol = copy(warmUp = None)
+  def disableWarmUp: StaticGrpcProtocol = copy(warmUp = None)
 
   /**
    * By default, if nothing inspects the response body, the body is ignored.
    * This option forces the parsing.
    */
-  def forceParsing: GrpcProtocol = copy(lazyParsing = false)
+  def forceParsing: StaticGrpcProtocol = copy(lazyParsing = false)
 
-  def warmUpCall[T](method: MethodDescriptor[T, _], req: T): GrpcProtocol =
+  def warmUpCall[T](method: MethodDescriptor[T, _], req: T): StaticGrpcProtocol =
     copy(warmUp = Some((method, req)))
 
-  private def createComponents(id: Option[String]): GrpcComponent = {
-    new GrpcComponent(channelBuilder, _shareChannel, id, warmUp, lazyParsing)
+  def createComponents(id: Option[String], coreComponents: CoreComponents): GrpcComponent = {
+    setEventLoopGroup(channelBuilder, coreComponents)
+    new GrpcComponent(
+      channelBuilder = channelBuilder,
+      shareChannel = _shareChannel,
+      channelAttributeName = id.fold(DefaultChannelAttributeName)(DefaultChannelAttributeName + "." + _),
+      warmUp = warmUp,
+      lazyParsing = lazyParsing
+    )
   }
 
-  private[gatling] lazy val overridingKey: ProtocolKey[GrpcProtocol, GrpcComponent] =
-    new ProtocolKey[GrpcProtocol, GrpcComponent] with StrictLogging {
-      override def protocolClass: Class[Protocol] = GrpcProtocolKey.protocolClass
+  private[gatling] lazy val overridingKey: Key = new ProtocolKey[GrpcProtocol, GrpcComponent] with StrictLogging {
+    override def protocolClass: Class[Protocol] = GrpcProtocolKey.protocolClass
 
-      override def defaultProtocolValue(configuration: GatlingConfiguration): GrpcProtocol =
-        GrpcProtocolKey.defaultProtocolValue(configuration)
+    override def defaultProtocolValue(configuration: GatlingConfiguration): GrpcProtocol =
+      StaticGrpcProtocol.this
 
-      override def newComponents(coreComponents: CoreComponents): GrpcProtocol => GrpcComponent = { _ =>
-        val id = UUID.randomUUID().toString
-        logger.info(s"Creating a new non-default GrpcComponent with ID $id")
-        createComponents(id = Some(id))
-      }
+    override def newComponents(coreComponents: CoreComponents): GrpcProtocol => GrpcComponent = { _ =>
+      val id = UUID.randomUUID().toString
+      logger.info(s"Creating a new non-default GrpcComponent with ID $id")
+      createComponents(id = Some(id), coreComponents)
     }
+  }
 
+}
+
+case class DynamicGrpcProtocol(
+  private val channelAttributeName: String,
+  private val lazyParsing: Boolean = true
+) extends GrpcProtocol {
+  import GrpcProtocol._
+
+  /** See [[StaticGrpcProtocol.forceParsing]] */
+  def forceParsing: DynamicGrpcProtocol = copy(lazyParsing = false)
+
+  override private[gatling] val overridingKey: Key = new ProtocolKey[GrpcProtocol, GrpcComponent] {
+    override def protocolClass: Class[Protocol] = classOf[DynamicGrpcProtocol].asInstanceOf[Class[Protocol]]
+
+    override def defaultProtocolValue(configuration: GatlingConfiguration): GrpcProtocol =
+      DynamicGrpcProtocol.this
+
+    override def newComponents(coreComponents: CoreComponents): GrpcProtocol => GrpcComponent = { _ =>
+      new GrpcComponent(
+        sharedChannel = null,
+        shareChannel = false,
+        channelAttributeName = channelAttributeName,
+        lazyParsing = lazyParsing,
+        onStart = Session.Identity
+      )
+    }
+  }
+
+  def setChannel(createBuilder: Session => ManagedChannelBuilder[_]): ActionBuilder =
+    new SetDynamicChannelBuilder(channelAttributeName, createBuilder)
 }

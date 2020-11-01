@@ -107,13 +107,6 @@ class GrpcExample extends Simulation {
             .extract(_.data.some)(_ is "Server says: Hello Server!")
         )
         .exec(
-          grpc("Extraction crash")
-            .rpc(ChatServiceGrpc.METHOD_GREET)
-            .payload(greetPayload)
-            .header(TokenHeaderKey)($("token"))
-            .extract(_.data.split(' ')(10).some)(_.exists) // This will crash, see below
-        )
-        .exec(
           grpc("Extract multiple")
             .rpc(ChatServiceGrpc.METHOD_GREET)
             .payload(greetPayload)
@@ -126,6 +119,13 @@ class GrpcExample extends Simulation {
             )
         )
     }
+    .exec(
+      grpc("Extraction crash")
+        .rpc(ChatServiceGrpc.METHOD_GREET)
+        .payload(greetPayload)
+        .header(TokenHeaderKey)($("token"))
+        .extract(_.data.split(' ')(10).some)(_.exists) // This will crash, see _.find(10) above
+    )
 
   setUp(
     s.inject(atOnceUsers(54))

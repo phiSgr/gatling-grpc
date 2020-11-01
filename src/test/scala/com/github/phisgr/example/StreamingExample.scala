@@ -119,13 +119,14 @@ class StreamingExample extends Simulation {
         .start(ChatServiceGrpc.METHOD_LISTEN)(Empty.defaultInstance)
         .header(TokenHeaderKey)($("whatever"))
     )
-    .exec(chatCall.copy("Fail")
-      .connect(ChatServiceGrpc.METHOD_CHAT)
-      .timestampExtractor { (_, message, _) =>
-        if (ThreadLocalRandom.current().nextBoolean()) message.time - 100 else throw new IllegalStateException()
-      }
-      .extract(_.data.some)(_ validate endsWithHi)
-      .endCheck(statusCode is Status.Code.CANCELLED)
+    .exec(
+      chatCall.copy("Fail")
+        .connect(ChatServiceGrpc.METHOD_CHAT)
+        .timestampExtractor { (_, message, _) =>
+          if (ThreadLocalRandom.current().nextBoolean()) message.time - 100 else throw new IllegalStateException()
+        }
+        .extract(_.data.some)(_ validate endsWithHi)
+        .endCheck(statusCode is Status.Code.CANCELLED)
     )
     .pause(2.seconds)
     .doIf($("earlyStop")) {
@@ -134,7 +135,8 @@ class StreamingExample extends Simulation {
 
   setUp(
     chatter.inject(atOnceUsers(10)),
-    listener.inject(atOnceUsers(100), rampUsers(10000).during(1.minute)),
-    failure.inject(atOnceUsers(1))
+    // if a virtual user enters at a second later than all exits, log analyzing fails
+    listener.inject(atOnceUsers(100), rampUsers(10000).during(59.seconds)),
+    failure.inject(atOnceUsers(2))
   ).protocols(grpcConf).maxDuration(1.minute).exponentialPauses
 }

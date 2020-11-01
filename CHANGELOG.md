@@ -6,6 +6,11 @@ Improves streaming logging, mimics Gatling WebSocket wordings.
 
 Lazy parsing for streaming calls.
 
+Dynamic Channel support. Remember to `exec`
+`dyanmicConf.setChannel` before running `.target(dyanmicConf)`.
+
+Uses the `EventLoopGroup` of Gatling in the `ManagedChannel`s.
+
 #### 0.9.0
 Upgrades to Gatling 3.4.0.
 

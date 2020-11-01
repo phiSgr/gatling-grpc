@@ -30,7 +30,7 @@ abstract class Call[Req, Res](
   protected val callOptions: Expression[CallOptions] = callAttributes.callOptions
 
   private[this] val component: GrpcProtocol.GrpcComponent = {
-    val protocolKey = callAttributes.protocolOverride.fold(GrpcProtocol.GrpcProtocolKey)(_.overridingKey)
+    val protocolKey = callAttributes.protocolOverride.fold[GrpcProtocol.Key](GrpcProtocol.GrpcProtocolKey)(_.overridingKey)
     ctx.protocolComponentsRegistry.components(protocolKey)
   }
 
@@ -57,6 +57,6 @@ abstract class Call[Req, Res](
   }
 
   protected def newCall(session: Session, callOptions: CallOptions): ClientCall[Req, Any] = {
-    component.getChannel(session).newCall(lazyParseMethod, callOptions)
+    component.newCall(session, lazyParseMethod, callOptions)
   }
 }
