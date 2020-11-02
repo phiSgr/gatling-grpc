@@ -3,9 +3,11 @@ package com.github.phisgr.example
 import java.util.UUID
 import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
 
+import ch.qos.logback.classic.Level
 import com.github.phisgr.example.chat._
-import com.github.phisgr.example.util.{ErrorResponseKey, TokenHeaderKey}
+import com.github.phisgr.example.util.{ErrorResponseKey, TokenHeaderKey, tuneLogging}
 import com.github.phisgr.gatling.grpc.Predef._
+import com.github.phisgr.gatling.grpc.protocol.GrpcProtocol
 import com.github.phisgr.gatling.grpc.stream.{SessionCombiner, TimestampExtractor}
 import com.github.phisgr.gatling.pb._
 import com.google.protobuf.empty.Empty
@@ -19,6 +21,8 @@ import scala.concurrent.duration._
 
 class StreamingExample extends Simulation {
   TestServer.startServer()
+
+  tuneLogging(classOf[GrpcProtocol].getName, Level.INFO)
 
   val timeExpression: Expression[Long] = { _ =>
     // pretend there's clock differences

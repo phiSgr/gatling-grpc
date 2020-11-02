@@ -11,6 +11,9 @@ Dynamic Channel support. Remember to `exec`
 
 Uses the `EventLoopGroup` of Gatling in the `ManagedChannel`s.
 
+Client streaming which measures time between client half close
+and server completion.
+
 #### 0.9.0
 Upgrades to Gatling 3.4.0.
 

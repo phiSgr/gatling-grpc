@@ -8,9 +8,9 @@ import io.gatling.core.action.builder.ActionBuilder
 import io.gatling.core.session.{Expression, Session}
 import io.gatling.core.structure.ScenarioContext
 
-class StreamReconciliateBuilder(requestName: Expression[String], streamName: String, isBidi: Boolean) extends ActionBuilder {
+class StreamReconciliateBuilder(requestName: Expression[String], streamName: String, direction: String) extends ActionBuilder {
   override def build(ctx: ScenarioContext, next: Action): Action =
-    new StreamMessageAction(requestName, ctx, next, baseName = "StreamReconciliate", isBidi) {
+    new StreamMessageAction(requestName, ctx, next, baseName = "StreamReconciliate", direction) {
       override def sendRequest(requestName: String, session: Session): Validation[Unit] = forToMatch {
         for {
           call <- fetchCall[StreamCall[_, _, _]](streamName, session)

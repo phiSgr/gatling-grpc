@@ -1,6 +1,8 @@
 package com.github.phisgr.example
 
-import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, TimeUnit}
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, ThreadLocalRandom, TimeUnit}
+import java.util.{Timer, TimerTask}
 
 import com.github.phisgr.example.chat._
 import com.github.phisgr.example.util._
@@ -15,14 +17,16 @@ import io.grpc.stub.{ServerCallStreamObserver, StreamObserver}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.Future
+import scala.util.Random._
+import scala.util.Try
 import scala.util.control.NonFatal
-import scala.util.{Random, Try}
 
 object TestServer extends StrictLogging {
 
   val accounts: collection.concurrent.Map[String, String] = new ConcurrentHashMap[String, String]().asScala
   val listeners = Sets.newConcurrentHashSet[ServerCallStreamObserver[ChatMessage]]()
   val messages = new LinkedBlockingQueue[ChatMessage]()
+  val timer = new Timer
 
   def startServer(port: Int = 8080): Server = {
     val portMessage = if (port == 8080) "" else s"from port $port "
@@ -61,7 +65,7 @@ object TestServer extends StrictLogging {
       })
 
       override def register(request: RegisterRequest): Future[RegisterResponse] = Future.fromTry(Try {
-        val token = new Random().alphanumeric.take(10).mkString
+        val token = ThreadLocalRandom.current().alphanumeric.take(10).mkString
         val success = accounts.putIfAbsent(request.username, token).isEmpty
 
         if (success) {
@@ -97,6 +101,38 @@ object TestServer extends StrictLogging {
         addObserver(responseObserver)
       }
 
+      override def blackHole(responseObserver: StreamObserver[Int]): StreamObserver[ChatMessage] = {
+        val start = System.currentTimeMillis()
+        val maxTime = 1000
+        val endTime = start + 1000
+
+        @volatile
+        var count = 0
+        val closed = new AtomicBoolean()
+        def close(): Unit = {
+          if (closed.compareAndSet(false, true)) {
+            responseObserver.onNext(count)
+            responseObserver.onCompleted()
+          }
+        }
+
+        timer.schedule(new TimerTask {
+          override def run(): Unit = close()
+        }, maxTime)
+
+        new StreamObserver[ChatMessage] {
+          override def onNext(value: ChatMessage): Unit = {
+            if (System.currentTimeMillis() > endTime) {
+              close()
+            } else {
+              count += 1
+            }
+          }
+          override def onError(t: Throwable): Unit = ()
+          override def onCompleted(): Unit = ()
+        }
+      }
+
       private def addObserver(responseObserver: StreamObserver[ChatMessage]): Unit = {
         val observer = responseObserver.asInstanceOf[ServerCallStreamObserver[ChatMessage]]
         listeners.add(observer)
@@ -114,7 +150,10 @@ object TestServer extends StrictLogging {
         headers: Metadata,
         next: ServerCallHandler[ReqT, RespT]
       ): ServerCall.Listener[ReqT] = {
-        if (new Random().nextInt(100000) == 0) {
+        if (
+          call.getMethodDescriptor.getFullMethodName == ChatServiceGrpc.METHOD_GREET.getFullMethodName &&
+            ThreadLocalRandom.current().nextInt(100000) == 0
+        ) {
           val trailers = new Metadata()
           trailers.put(ErrorResponseKey, CustomError("1 in 100,000 chance!"))
           call.close(Status.UNAVAILABLE.withDescription("You're unlucky."), trailers)

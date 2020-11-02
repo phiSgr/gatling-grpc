@@ -58,7 +58,7 @@ class ServerStreamStartAction[Req, Res](
     val streamName = builder.streamName
 
     for {
-      _ <- ensureNoStream(session, streamName, isBidi = false)
+      _ <- ensureNoStream(session, streamName, direction = "server")
       headers <- resolveHeaders(session)
       resolvedPayload <- builder.req(session)
       callOptions <- callOptions(session)

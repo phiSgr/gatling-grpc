@@ -1,12 +1,11 @@
 package com.github.phisgr.example
 
+import ch.qos.logback.classic.Level
 import com.github.phisgr.example.chat.{ChatServiceGrpc, GreetRequest, RegisterRequest}
-import com.github.phisgr.example.util.{ClientSideLoadBalancingResolverFactory, TokenHeaderKey, ports}
+import com.github.phisgr.example.util.{ClientSideLoadBalancingResolverFactory, TokenHeaderKey, ports, tuneLogging}
 import com.github.phisgr.gatling.grpc.Predef._
 import com.github.phisgr.gatling.grpc.action.GrpcCallAction
 import com.github.phisgr.gatling.pb._
-import org.slf4j.LoggerFactory
-import ch.qos.logback.classic.{Level, Logger}
 // stringToExpression is hidden because we have $ in GrpcDsl
 import io.gatling.core.Predef.{stringToExpression => _, _}
 import io.gatling.core.session.Expression
@@ -16,9 +15,7 @@ class ResolverExample extends Simulation {
 
   // Although the actions do not support runtime change of logging level
   // this is done before the actions are built.
-  LoggerFactory.getLogger(classOf[GrpcCallAction[_, _]].getName)
-    .asInstanceOf[Logger]
-    .setLevel(Level.TRACE)
+  tuneLogging(classOf[GrpcCallAction[_, _]].getName, Level.TRACE)
 
   val grpcConf = grpc(
     managedChannelBuilder(target = "name.resolver.example")

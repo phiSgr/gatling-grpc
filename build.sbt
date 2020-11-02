@@ -3,7 +3,7 @@ val commonSettings = Seq(
   scalaVersion := "2.12.10"
 )
 
-val gatlingVersion = "3.4.0"
+val gatlingVersion = "3.4.1"
 val gatlingCore = "io.gatling" % "gatling-core" % gatlingVersion
 
 val publishSettings = {

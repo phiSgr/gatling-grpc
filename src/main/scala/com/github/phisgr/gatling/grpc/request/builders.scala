@@ -10,11 +10,14 @@ case class Grpc private[gatling](requestName: Expression[String]) {
   def rpc[Req, Res](method: MethodDescriptor[Req, Res]): Unary[Req, Res] =
     new Unary(requestName, method)
 
-  def serverStream[Req, Res](streamName: String): ServerStream =
+  def serverStream(streamName: String): ServerStream =
     ServerStream(requestName, streamName)
 
-  def bidiStream[Req, Res](streamName: String): BidiStream =
+  def bidiStream(streamName: String): BidiStream =
     BidiStream(requestName, streamName)
+
+  def clientStream(streamName: String): ClientStream =
+    ClientStream(requestName, streamName)
 }
 
 class Unary[Req, Res] private[gatling](requestName: Expression[String], method: MethodDescriptor[Req, Res]) {
@@ -24,20 +27,20 @@ class Unary[Req, Res] private[gatling](requestName: Expression[String], method: 
     GrpcCallActionBuilder(requestName, method, req)
 }
 
-sealed abstract class Stream private[gatling] {
+sealed abstract class ListeningStream private[gatling] {
   val requestName: Expression[String]
   val streamName: String
-  val isBidi: Boolean
+  def direction: String
 
-  def cancelStream = new StreamCancelBuilder(requestName, streamName, isBidi = isBidi)
-  def reconciliate = new StreamReconciliateBuilder(requestName, streamName, isBidi = isBidi)
+  def cancelStream = new StreamCancelBuilder(requestName, streamName, direction)
+  def reconciliate = new StreamReconciliateBuilder(requestName, streamName, direction)
 }
 
 case class ServerStream private[gatling](
   requestName: Expression[String],
   streamName: String
-) extends Stream {
-  val isBidi = false
+) extends ListeningStream {
+  override def direction: String = "server"
 
   def start[Req, Res](method: MethodDescriptor[Req, Res])(req: Expression[Req]): ServerStreamStartActionBuilder[Req, Res] = {
     assert(method.getType == MethodDescriptor.MethodType.SERVER_STREAMING)
@@ -48,14 +51,37 @@ case class ServerStream private[gatling](
 case class BidiStream private[gatling](
   requestName: Expression[String],
   streamName: String
-) extends Stream {
-  val isBidi = true
+) extends ListeningStream {
+  override def direction: String = "bidi"
 
   def connect[Req: ClassTag, Res](method: MethodDescriptor[Req, Res]): BidiStreamStartActionBuilder[Req, Res] = {
     assert(method.getType == MethodDescriptor.MethodType.BIDI_STREAMING)
     BidiStreamStartActionBuilder(requestName, streamName, method)
   }
 
-  def send[Req](req: Expression[Req]) = new StreamSendBuilder(requestName, streamName, req)
+  def send[Req](req: Expression[Req]) = new StreamSendBuilder(requestName, streamName, req, direction = direction)
   def complete = new StreamCompleteBuilder(requestName, streamName)
+}
+
+case class ClientStream private[gatling](
+  requestName: Expression[String],
+  streamName: String
+) {
+  def direction: String = "client"
+
+  def connect[Req: ClassTag, Res](method: MethodDescriptor[Req, Res]): ClientStreamStartActionBuilder[Req, Res] = {
+    assert(method.getType == MethodDescriptor.MethodType.CLIENT_STREAMING)
+    ClientStreamStartActionBuilder(requestName, streamName, method)
+  }
+
+  def send[Req](req: Expression[Req]) = new StreamSendBuilder(requestName, streamName, req, direction = direction)
+  def cancelStream = new StreamCancelBuilder(requestName, streamName, direction = direction)
+  /**
+   * If server completes before client complete,
+   * the measured time will be negative.
+   * If this behaviour is not good enough for you,
+   * please open an issue with your use case,
+   * so that we can better design the API.
+   */
+  def completeAndWait = new ClientStreamCompletionBuilder(requestName, streamName)
 }

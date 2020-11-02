@@ -15,7 +15,7 @@ abstract class StreamMessageAction(
   ctx: ScenarioContext,
   override val next: Action,
   baseName: String,
-  isBidi: Boolean
+  val direction: String
 ) extends RequestAction
   with ExitableAction
   with NameGen {
@@ -28,8 +28,6 @@ abstract class StreamMessageAction(
 
   override val statsEngine: StatsEngine = ctx.coreComponents.statsEngine
   override val clock: Clock = ctx.coreComponents.clock
-
-  protected val direction: String = if (isBidi) "bidi" else "server"
 
   override val name: String = genName(direction + baseName)
 }

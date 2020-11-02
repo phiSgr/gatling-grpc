@@ -5,7 +5,7 @@ import com.github.phisgr.gatling.grpc.check.GrpcResponse.GrpcStreamEnd
 import com.github.phisgr.gatling.grpc.check.StreamCheck
 import com.github.phisgr.gatling.grpc.request.CallAttributes
 import com.github.phisgr.gatling.grpc.stream.StreamCall.ensureNoStream
-import com.github.phisgr.gatling.grpc.stream.{BidiStreamCall, SessionCombiner, TimestampExtractor}
+import com.github.phisgr.gatling.grpc.stream.{BidiStreamCall, ClientStreamer, SessionCombiner, TimestampExtractor}
 import io.gatling.commons.util.Clock
 import io.gatling.commons.validation.Validation
 import io.gatling.core.action.Action
@@ -54,12 +54,14 @@ class BidiStreamStartAction[Req: ClassTag, Res](
 ) extends StreamStartAction[Req, Res](ctx, builder) {
   override protected def callClass: Class[_] = classOf[BidiStreamCall[_, _]]
 
+  private[this] val reqClass = implicitly[ClassTag[Req]].runtimeClass.asInstanceOf[Class[Req]]
+
   override def requestName: Expression[String] = builder.requestName
   override def sendRequest(requestName: String, session: Session): Validation[Unit] = forToMatch {
     val streamName = builder.streamName
 
     for {
-      _ <- ensureNoStream(session, streamName, isBidi = true)
+      _ <- ensureNoStream(session, streamName, direction = "bidi")
       headers <- resolveHeaders(session)
       callOptions <- callOptions(session)
     } yield {
@@ -80,8 +82,6 @@ class BidiStreamStartAction[Req: ClassTag, Res](
     }
   }
 
-  private[this] val reqClass: Class[Req] = implicitly[ClassTag[Req]].runtimeClass.asInstanceOf[Class[Req]]
-
   override def statsEngine: StatsEngine = ctx.coreComponents.statsEngine
   override def clock: Clock = ctx.coreComponents.clock
   override val name: String = genName("serverStreamStart")
@@ -89,7 +89,7 @@ class BidiStreamStartAction[Req: ClassTag, Res](
 
 class StreamCompleteBuilder(requestName: Expression[String], streamName: String) extends ActionBuilder {
   override def build(ctx: ScenarioContext, next: Action): Action =
-    new StreamMessageAction(requestName, ctx, next, baseName = "StreamComplete", isBidi = true) {
+    new StreamMessageAction(requestName, ctx, next, baseName = "StreamComplete", direction = "bidi") {
       override def sendRequest(requestName: String, session: Session): Validation[Unit] = forToMatch {
         for {
           call <- fetchCall[BidiStreamCall[_, _]](streamName, session)
@@ -99,12 +99,17 @@ class StreamCompleteBuilder(requestName: Expression[String], streamName: String)
     }
 }
 
-class StreamSendBuilder[Req](requestName: Expression[String], streamName: String, req: Expression[Req]) extends ActionBuilder {
+class StreamSendBuilder[Req](
+  requestName: Expression[String],
+  streamName: String,
+  req: Expression[Req],
+  direction: String
+) extends ActionBuilder {
   override def build(ctx: ScenarioContext, next: Action): Action =
-    new StreamMessageAction(requestName, ctx, next, baseName = "StreamSend", isBidi = true) {
+    new StreamMessageAction(requestName, ctx, next, baseName = "StreamSend", direction = direction) {
       override def sendRequest(requestName: String, session: Session): Validation[Unit] = forToMatch {
         for {
-          call <- fetchCall[BidiStreamCall[Req, _]](streamName, session)
+          call <- fetchCall[ClientStreamer[Req]](streamName, session)
           payload <- req(session)
           _ <- call.onReq(payload)
         } yield {

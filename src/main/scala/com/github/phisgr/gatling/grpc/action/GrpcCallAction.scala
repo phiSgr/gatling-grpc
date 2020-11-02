@@ -1,12 +1,11 @@
 package com.github.phisgr.gatling.grpc.action
 
-import java.io.ByteArrayInputStream
-
 import com.github.phisgr.gatling.forToMatch
 import com.github.phisgr.gatling.grpc.ClientCalls
 import com.github.phisgr.gatling.grpc.check.{GrpcCheck, GrpcResponse, StatusExtract}
+import com.github.phisgr.gatling.grpc.protocol.Statuses.{MultipleResponses, NoResponses}
 import com.github.phisgr.gatling.grpc.request.Call
-import com.github.phisgr.gatling.grpc.util.GrpcStringBuilder
+import com.github.phisgr.gatling.grpc.util.{EventLoopHelper, GrpcStringBuilder, delayedParsing}
 import io.gatling.commons.stats.{KO, OK}
 import io.gatling.commons.util.Clock
 import io.gatling.commons.util.StringHelper.Eol
@@ -119,9 +118,7 @@ class GrpcCallAction[Req, Res](
 
     override def onMessage(message: Any): Unit = {
       if (null != body) {
-        throw Status.INTERNAL
-          .withDescription("More than one value received for unary call")
-          .asRuntimeException
+        throw MultipleResponses
       }
       this.body = message
     }
@@ -129,17 +126,10 @@ class GrpcCallAction[Req, Res](
     override def onClose(status: Status, trailers: Metadata): Unit = {
       endTimestamp = clock.nowMillis
       this.trailers = trailers
-      grpcStatus = if (status.isOk && null == body) {
-        Status.INTERNAL.withDescription("No value received for unary call")
-      } else {
-        status
-      }
+      grpcStatus = if (status.isOk && null == body) NoResponses else status
 
       // run() in session event loop
-      val eventLoop = session.eventLoop
-      if (!eventLoop.isShutdown) {
-        eventLoop.execute(this)
-      }
+      session.eventLoop.checkAndExecute(this)
     }
 
     override def run(): Unit = {
@@ -152,7 +142,6 @@ class GrpcCallAction[Req, Res](
       )
 
       val status = if (checkError.isEmpty) OK else KO
-
       val errorMessage = checkError.map(_.message)
 
       val newSession = if (builder.isSilent) checkSaveUpdated else {
@@ -171,14 +160,8 @@ class GrpcCallAction[Req, Res](
       }
 
       def dump = {
-        val bodyParsed = if (null == body) null
-        else if (responseMarshaller ne null) {
-          // does not support runtime change of logger level
-          val rawBytes = body.asInstanceOf[Array[Byte]]
-          responseMarshaller.parse(new ByteArrayInputStream(rawBytes))
-        } else {
-          body.asInstanceOf[Res]
-        }
+        val bodyParsed = delayedParsing(body, responseMarshaller)
+
         StringBuilderPool.DEFAULT
           .get()
           .append(Eol)

@@ -5,6 +5,7 @@ package example;
 option java_package = "com.github.phisgr.example";
 
 import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
 
 message GreetRequest {
     string username = 1;
@@ -37,4 +38,6 @@ service ChatService {
 
     rpc Listen (google.protobuf.Empty) returns (stream ChatMessage);
     rpc Chat (stream ChatMessage) returns (stream ChatMessage);
+
+    rpc BlackHole (stream ChatMessage) returns (google.protobuf.Int32Value);
 }

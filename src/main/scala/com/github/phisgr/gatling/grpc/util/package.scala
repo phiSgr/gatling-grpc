@@ -1,12 +1,15 @@
 package com.github.phisgr.gatling.grpc
 
+import java.io.ByteArrayInputStream
 import java.lang.{StringBuilder => JStringBuilder}
 
 import com.google.common.base.Charsets.US_ASCII
 import io.gatling.commons.util.StringHelper.Eol
 import io.gatling.commons.validation.Failure
 import io.gatling.core.session.Session
+import io.grpc.MethodDescriptor.Marshaller
 import io.grpc.{InternalMetadata, Metadata, Status}
+import io.netty.channel.EventLoop
 
 import scala.reflect.ClassTag
 
@@ -102,5 +105,23 @@ package object util {
   private[gatling] def wrongTypeMessage[T: ClassTag](value: Any) = Failure(
     s"Value $value is of type ${value.getClass.getName}, expected ${implicitly[ClassTag[T]].runtimeClass.getName}"
   )
+
+  implicit private[gatling] class EventLoopHelper(val eventLoop: EventLoop) extends AnyVal {
+    def checkAndExecute(command: Runnable): Unit = {
+      if (!eventLoop.isShutdown) eventLoop.execute(command)
+    }
+  }
+
+  private[gatling] def delayedParsing[Res](body: Any, responseMarshaller: Marshaller[Res]): Any = {
+    if (null == body) {
+      null
+    } else if (responseMarshaller ne null) {
+      // does not support runtime change of logger level
+      val rawBytes = body.asInstanceOf[Array[Byte]]
+      responseMarshaller.parse(new ByteArrayInputStream(rawBytes))
+    } else {
+      body
+    }
+  }
 
 }

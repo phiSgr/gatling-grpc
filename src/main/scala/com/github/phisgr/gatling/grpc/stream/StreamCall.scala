@@ -29,7 +29,7 @@ abstract class StreamCall[Req, Res, State >: ServerStreamState](
   checks: List[StreamCheck[Res]],
   endChecks: List[StreamCheck[GrpcStreamEnd]],
   statsEngine: StatsEngine
-) extends StrictLogging {
+) extends StrictLogging with Cancellable {
 
   protected var state: State = initState
   protected var callStartTime: Long = _
@@ -198,9 +198,9 @@ object StreamCall {
 
   case class Completed(status: Status, header: Metadata) extends ServerStreamState
 
-  def ensureNoStream(session: Session, streamName: String, isBidi: Boolean): Validation[Unit] = {
+  def ensureNoStream(session: Session, streamName: String, direction: String): Validation[Unit] = {
     if (session.contains(streamName)) {
-      Failure(s"Unable to create a new ${if (isBidi) "bidi" else "server"} stream with name $streamName: already exists")
+      Failure(s"Unable to create a new $direction stream with name $streamName: already exists")
     } else {
       Success(())
     }

@@ -37,7 +37,7 @@ class BidiStreamCall[Req, Res](
   checks,
   endChecks,
   ctx.coreComponents.statsEngine
-) {
+) with ClientStreamer[Req] {
   private implicit def reqTag: ClassTag[Req] = ClassTag(reqClass)
 
   {
@@ -54,7 +54,7 @@ class BidiStreamCall[Req, Res](
     }
   }
 
-  def onReq(req: Req): Validation[Unit] = {
+  override def onReq(req: Req): Validation[Unit] = {
     if (!reqClass.isInstance(req)) {
       wrongTypeMessage[Req](req)
     } else {
