@@ -1,7 +1,6 @@
 package com.github.phisgr.gatling.grpc.check
 
 import com.github.phisgr.gatling.generic.check.ResponseExtract
-import io.gatling.commons.validation.SuccessWrapper
 import io.gatling.core.check._
 
 private[gatling] object ResponseMaterializers {
@@ -17,6 +16,6 @@ private[gatling] object ResponseMaterializers {
     new CheckMaterializer[ResponseExtract, StreamCheck[Res], Res, Res](
       specializer = StreamCheck(_, GrpcCheck.Value)
     ) {
-      override protected def preparer: Preparer[Res, Res] = _.success
+      override protected def preparer: Preparer[Res, Res] = identityPreparer
     }
 }

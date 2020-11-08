@@ -23,7 +23,8 @@ trait GrpcDsl {
 
   /**
    * Creates a GrpcProtocol that looks up a channel created at runtime.
-   * The virtual user has to go through `exec(`[[com.github.phisgr.gatling.grpc.protocol.DynamicGrpcProtocol.setChannel]]`)`
+   * The virtual user has to go through
+   * `exec(`[[com.github.phisgr.gatling.grpc.protocol.DynamicGrpcProtocol.setChannel]]`)`
    * before running a gRPC action with `.target(dynamicChannel)`
    */
   def dynamicChannel(channelAttributeName: String): DynamicGrpcProtocol = DynamicGrpcProtocol(channelAttributeName)

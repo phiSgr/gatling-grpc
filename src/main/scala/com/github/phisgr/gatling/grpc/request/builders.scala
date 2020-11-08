@@ -67,15 +67,15 @@ case class ClientStream private[gatling](
   requestName: Expression[String],
   streamName: String
 ) {
-  def direction: String = "client"
+  private def clientStreamDirection: String = "client"
 
   def connect[Req: ClassTag, Res](method: MethodDescriptor[Req, Res]): ClientStreamStartActionBuilder[Req, Res] = {
     assert(method.getType == MethodDescriptor.MethodType.CLIENT_STREAMING)
     ClientStreamStartActionBuilder(requestName, streamName, method)
   }
 
-  def send[Req](req: Expression[Req]) = new StreamSendBuilder(requestName, streamName, req, direction = direction)
-  def cancelStream = new StreamCancelBuilder(requestName, streamName, direction = direction)
+  def send[Req](req: Expression[Req]) = new StreamSendBuilder(requestName, streamName, req, direction = clientStreamDirection)
+  def cancelStream = new StreamCancelBuilder(requestName, streamName, direction = clientStreamDirection)
   /**
    * If server completes before client complete,
    * the measured time will be negative.

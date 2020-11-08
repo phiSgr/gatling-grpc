@@ -29,7 +29,7 @@ class ClientStreamingExample extends Simulation {
     .exec(
       clientStream.connect(ChatServiceGrpc.METHOD_BLACK_HOLE)
         .callOptions(CallOptions.DEFAULT.withDeadlineAfter(500, MILLISECONDS))
-        // should be DEADLINE_EXCEEDED, we want to trigger logging
+        // should be DEADLINE_EXCEEDED, but we want to trigger logging
         .check(statusCode is Status.Code.CANCELLED)
     )
     .doIfOrElse(_.userId <= 100) {

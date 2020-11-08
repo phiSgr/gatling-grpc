@@ -18,7 +18,7 @@ This is not included in the Gatling-gRPC library to avoid confusion.
 ## Usage
 
 Assuming you're using
-[Gatling with Gradle](https://github.com/lkishalmi/gradle-gatling-plugin),
+[Gatling with Gradle](https://gatling.io/docs/current/extensions/gradle_plugin/),
 add this line to the `dependencies`.  
 `gatling 'com.github.phisgr:gatling-javapb_2.12:1.0.1'`
 
