@@ -1,11 +1,12 @@
 package com.github.phisgr.gatling.grpc.action
 
 import com.github.phisgr.gatling.forToMatch
+import com.github.phisgr.gatling.generic.SessionCombiner
 import com.github.phisgr.gatling.grpc.check.GrpcResponse.GrpcStreamEnd
 import com.github.phisgr.gatling.grpc.check.StreamCheck
 import com.github.phisgr.gatling.grpc.request.CallAttributes
 import com.github.phisgr.gatling.grpc.stream.StreamCall.ensureNoStream
-import com.github.phisgr.gatling.grpc.stream.{ServerStreamCall, SessionCombiner, TimestampExtractor}
+import com.github.phisgr.gatling.grpc.stream.{ServerStreamCall, TimestampExtractor}
 import io.gatling.commons.util.Clock
 import io.gatling.commons.validation.Validation
 import io.gatling.core.action.Action

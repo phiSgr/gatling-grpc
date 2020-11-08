@@ -1,9 +1,10 @@
 package com.github.phisgr.gatling.grpc.request
 
+import com.github.phisgr.gatling.generic.check.ResponseExtract
+import com.github.phisgr.gatling.grpc
 import com.github.phisgr.gatling.grpc.HeaderPair
-import com.github.phisgr.gatling.grpc.check.ResponseExtract
 import com.github.phisgr.gatling.grpc.protocol.GrpcProtocol
-import io.gatling.commons.validation.Success
+import io.gatling.commons.validation.{Success, Validation}
 import io.gatling.core.check.{FindCheckBuilder, MultipleFindCheckBuilder}
 import io.gatling.core.session.{Expression, Session}
 import io.grpc.{CallOptions, Metadata, MethodDescriptor}
@@ -19,18 +20,18 @@ trait CallDefinition[Self, Check[_], Req, Res] {
   // In fact they can be added to checks using .check
   // but the type Res cannot be inferred there
   def extract[X](
-    f: Res => Option[X])(
+    f: Res => Validation[Option[X]])(
     ts: (FindCheckBuilder[ResponseExtract, Res, X] => Check[Res])*
   ): Self = {
-    val e = ResponseExtract.extract(f)
+    val e = grpc.Predef.extract(f)
     check(mapToList(ts)(_.apply(e)): _*)
   }
 
   def extractMultiple[X](
-    f: Res => Option[Seq[X]])(
+    f: Res => Validation[Option[Seq[X]]])(
     ts: (MultipleFindCheckBuilder[ResponseExtract, Res, X] => Check[Res])*
   ): Self = {
-    val e = ResponseExtract.extractMultiple[Res, X](f)
+    val e = grpc.Predef.extractMultiple[Res, X](f)
     check(mapToList(ts)(_.apply(e)): _*)
   }
 

@@ -1,5 +1,6 @@
 package com.github.phisgr.gatling.grpc.check
 
+import com.github.phisgr.gatling.generic.check.ResponseExtract
 import com.github.phisgr.gatling.grpc.check.GrpcResponse.GrpcStreamEnd
 import io.gatling.core.check.{CheckBuilder, CheckMaterializer, FindCheckBuilder, ValidatorCheckBuilder}
 import io.grpc.{Metadata, Status}
@@ -7,7 +8,7 @@ import io.grpc.{Metadata, Status}
 trait StreamingCheckSupport {
 
   implicit def streamResMat[Res]: CheckMaterializer[ResponseExtract, StreamCheck[Res], Res, Res] =
-    ResponseExtract.streamMaterializer[Res]
+    ResponseMaterializers.streamMaterializer[Res]
 
   implicit val streamStatusMat: CheckMaterializer[StatusExtract, StreamCheck[GrpcStreamEnd], GrpcStreamEnd, Status] =
     StatusExtract.StreamMaterializer

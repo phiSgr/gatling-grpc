@@ -1,5 +1,6 @@
 package com.github.phisgr.gatling.grpc.stream
 
+import com.github.phisgr.gatling.generic.SessionCombiner
 import com.github.phisgr.gatling.grpc.check.GrpcResponse.GrpcStreamEnd
 import com.github.phisgr.gatling.grpc.check.StreamCheck
 import com.github.phisgr.gatling.grpc.stream.StreamCall._

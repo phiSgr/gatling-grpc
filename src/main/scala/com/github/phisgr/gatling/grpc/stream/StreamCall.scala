@@ -1,5 +1,6 @@
 package com.github.phisgr.gatling.grpc.stream
 
+import com.github.phisgr.gatling.generic.SessionCombiner
 import com.github.phisgr.gatling.grpc.check.GrpcResponse.GrpcStreamEnd
 import com.github.phisgr.gatling.grpc.check.{GrpcResponse, StreamCheck}
 import com.github.phisgr.gatling.grpc.stream.StreamCall._
@@ -173,13 +174,7 @@ abstract class StreamCall[Req, Res, State >: ServerStreamState](
   }
 
   private def combineAndNext(mainSession: Session, next: Action, close: Boolean): Unit = {
-    val combined = try {
-      combine.reconcile(main = mainSession, stream = streamSession)
-    } catch {
-      case NonFatal(e) =>
-        logger.error("Session combining failed", e)
-        mainSession
-    }
+    val combined = combine.combineSafely(main = mainSession, branched = streamSession, logger = logger)
 
     val newSession = if (!close) combined else combined.remove(streamName)
     next ! newSession

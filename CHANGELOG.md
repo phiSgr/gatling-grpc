@@ -14,6 +14,12 @@ Uses the `EventLoopGroup` of Gatling in the `ManagedChannel`s.
 Client streaming which measures time between client half close
 and server completion.
 
+Moved some code to [Gatling-Ext](https://github.com/phiSgr/gatling-ext).
+- `SessionCombiner` is now `com.github.phisgr.gatling.generic.SessionCombiner`.
+- `extract` and `extractMultiple` now expect a function that returns a `Validation`.
+This is mostly source-compatible because of the automatic implicit conversion to
+a successful validation, `import`ed from `io.gatling.core.Predef`.
+
 #### 0.9.0
 Upgrades to Gatling 3.4.0.
 

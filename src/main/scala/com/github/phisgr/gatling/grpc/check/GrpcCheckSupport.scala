@@ -1,5 +1,7 @@
 package com.github.phisgr.gatling.grpc.check
 
+import com.github.phisgr.gatling.generic.check.ResponseExtract
+import io.gatling.commons.validation.Validation
 import io.gatling.core.check.{CheckBuilder, CheckMaterializer, DefaultMultipleFindCheckBuilder, FindCheckBuilder, ValidatorCheckBuilder}
 import io.grpc.{Metadata, Status}
 
@@ -11,17 +13,17 @@ trait GrpcCheckSupport {
   val statusDescription: FindCheckBuilder[StatusExtract, Status, String] =
     StatusExtract.StatusDescription
 
-  def extract[T, X](f: T => Option[X]): FindCheckBuilder[ResponseExtract, T, X] =
-    ResponseExtract.extract(f)
+  def extract[T, X](f: T => Validation[Option[X]]): FindCheckBuilder[ResponseExtract, T, X] =
+    ResponseExtract.extract(f, "grpcResponse")
 
-  def extractMultiple[T, X](f: T => Option[Seq[X]]): DefaultMultipleFindCheckBuilder[ResponseExtract, T, X] =
-    ResponseExtract.extractMultiple(f)
+  def extractMultiple[T, X](f: T => Validation[Option[Seq[X]]]): DefaultMultipleFindCheckBuilder[ResponseExtract, T, X] =
+    ResponseExtract.extractMultiple(f, "grpcResponse")
 
   def trailer[T](key: Metadata.Key[T]): DefaultMultipleFindCheckBuilder[TrailersExtract, Metadata, T] =
     TrailersExtract.trailer(key)
 
   implicit def resMat[Res]: CheckMaterializer[ResponseExtract, GrpcCheck[Res], GrpcResponse[Res], Res] =
-    ResponseExtract.materializer[Res]
+    ResponseMaterializers.materializer[Res]
 
   implicit val statusMat: CheckMaterializer[StatusExtract, GrpcCheck[Any], GrpcResponse[Any], Status] =
     StatusExtract.Materializer

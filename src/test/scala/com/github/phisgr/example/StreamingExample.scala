@@ -6,9 +6,10 @@ import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
 import ch.qos.logback.classic.Level
 import com.github.phisgr.example.chat._
 import com.github.phisgr.example.util.{ErrorResponseKey, TokenHeaderKey, tuneLogging}
+import com.github.phisgr.gatling.generic.SessionCombiner
 import com.github.phisgr.gatling.grpc.Predef._
 import com.github.phisgr.gatling.grpc.protocol.GrpcProtocol
-import com.github.phisgr.gatling.grpc.stream.{SessionCombiner, TimestampExtractor}
+import com.github.phisgr.gatling.grpc.stream.TimestampExtractor
 import com.github.phisgr.gatling.pb._
 import com.google.protobuf.empty.Empty
 import io.gatling.commons.validation.{Failure, Validation}
