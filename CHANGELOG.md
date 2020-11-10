@@ -1,3 +1,6 @@
+#### 0.10.1
+`DynamicGrpcProtocol.disposeChannel` for closing the dynamic channel early.
+
 #### 0.10.0
 CHANGE OF BEHAVIOUR: the timestamp extractor is run **BEFORE**
 the checks are run. This makes it easier to detect "first" messages in a stream.

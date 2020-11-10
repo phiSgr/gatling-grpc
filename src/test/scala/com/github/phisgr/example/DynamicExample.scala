@@ -19,7 +19,7 @@ class DynamicExample extends Simulation {
   val greetPayload: Expression[GreetRequest] = GreetRequest(name = "World")
     .updateExpr(_.username :~ $("username"))
 
-  val s = scenario("Throttle")
+  val s = scenario("Dynamic")
     .feed(csv("usernames.csv").queue)
     .feed(ports.map(port => Map("port" -> port)).circular)
     .exec(
@@ -54,6 +54,15 @@ class DynamicExample extends Simulation {
         .payload(greetPayload)
         .header(TokenHeaderKey)($("token"))
         .target(static2)
+    )
+    .exec(dynamic.disposeChannel)
+    // This will fail
+    .exec(dynamic.disposeChannel)
+    .exec(
+      grpc("No Channel")
+        .rpc(ChatServiceGrpc.METHOD_GREET)
+        .payload(greetPayload)
+        .target(dynamic)
     )
 
   // If all calls specify the target, no global default protocol is needed

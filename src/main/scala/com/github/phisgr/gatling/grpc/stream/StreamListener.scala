@@ -1,8 +1,8 @@
 package com.github.phisgr.gatling.grpc.stream
 
+import com.github.phisgr.gatling.generic.util.EventLoopHelper
 import com.github.phisgr.gatling.grpc.Reflections
 import com.github.phisgr.gatling.grpc.stream.StreamCall.Cancelled
-import com.github.phisgr.gatling.grpc.util.EventLoopHelper
 import io.gatling.commons.util.Clock
 import io.grpc.{ClientCall, Metadata, Status}
 import io.netty.channel.EventLoop

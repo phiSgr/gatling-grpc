@@ -2,14 +2,16 @@ package com.github.phisgr.gatling.grpc.protocol
 
 import java.util.UUID
 
-import com.github.phisgr.gatling.grpc.action.SetDynamicChannelBuilder
+import com.github.phisgr.gatling.grpc.action.{DisposeDynamicChannel, SetDynamicChannelBuilder}
 import com.typesafe.scalalogging.StrictLogging
 import io.gatling.commons.util.Throwables._
 import io.gatling.core.CoreComponents
+import io.gatling.core.action.Action
 import io.gatling.core.action.builder.ActionBuilder
 import io.gatling.core.config.GatlingConfiguration
 import io.gatling.core.protocol.{Protocol, ProtocolComponents, ProtocolKey}
 import io.gatling.core.session.{Session, SessionPrivateAttributes}
+import io.gatling.core.structure.ScenarioContext
 import io.gatling.netty.util.Transports
 import io.grpc.netty.NettyChannelBuilder
 import io.grpc.stub.ClientCalls
@@ -201,4 +203,17 @@ case class DynamicGrpcProtocol(
 
   def setChannel(createBuilder: Session => ManagedChannelBuilder[_]): ActionBuilder =
     new SetDynamicChannelBuilder(channelAttributeName, createBuilder)
+
+  /**
+   * This is necessary only if you want to close the `ManagedChannel` early,
+   * possibly for swapping another dynamic channel in.
+   *
+   * On exit of the virtual user, we attempt to shutdown the channel anyway.
+   *
+   * @return an ActionBuilder to be `exec`ed.
+   */
+  lazy val disposeChannel: ActionBuilder = new ActionBuilder {
+    override def build(ctx: ScenarioContext, next: Action): Action =
+      new DisposeDynamicChannel(channelAttributeName, next)
+  }
 }

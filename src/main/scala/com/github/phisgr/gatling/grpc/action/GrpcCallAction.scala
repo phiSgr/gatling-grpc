@@ -1,11 +1,12 @@
 package com.github.phisgr.gatling.grpc.action
 
 import com.github.phisgr.gatling.forToMatch
+import com.github.phisgr.gatling.generic.util.EventLoopHelper
 import com.github.phisgr.gatling.grpc.ClientCalls
 import com.github.phisgr.gatling.grpc.check.{GrpcCheck, GrpcResponse, StatusExtract}
 import com.github.phisgr.gatling.grpc.protocol.Statuses.{MultipleResponses, NoResponses}
 import com.github.phisgr.gatling.grpc.request.Call
-import com.github.phisgr.gatling.grpc.util.{EventLoopHelper, GrpcStringBuilder, delayedParsing}
+import com.github.phisgr.gatling.grpc.util.{GrpcStringBuilder, delayedParsing}
 import io.gatling.commons.stats.{KO, OK}
 import io.gatling.commons.util.Clock
 import io.gatling.commons.util.StringHelper.Eol
