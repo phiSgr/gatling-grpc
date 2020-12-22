@@ -6,7 +6,7 @@ import io.gatling.core.session._
 import scalapb.lenses.Lens._
 import scalapb.lenses.{Lens, Mutation, Updatable}
 
-import scala.collection.GenTraversableOnce
+import scala.collection.IterableOnce
 
 package object pb {
 
@@ -19,34 +19,35 @@ package object pb {
   implicit class EpxrSeqLens[A, B](val l: Lens[A, Seq[B]]) extends AnyVal {
     private def ll = new EpxrSeqLikeLens(l)
     def :+~(e: Expression[B]): Expression[Mutation[A]] = ll :+~ e
-    def :++~(e: Expression[GenTraversableOnce[B]]): Expression[Mutation[A]] = ll :++~ e
+    def :++~(e: Expression[IterableOnce[B]]): Expression[Mutation[A]] = ll :++~ e
     def foreachExpr(f: Lens[B, B] => Expression[Mutation[B]]): Expression[Mutation[A]] = ll.foreachExpr(f)
   }
 
-  implicit class EpxrSeqLikeLens[A, B, Coll[B] <: collection.SeqLike[B, Coll[B]]](
+  implicit class EpxrSeqLikeLens[A, B, Coll[B] <: collection.SeqOps[B, Coll, Coll[B]]](
     val l: Lens[A, Coll[B]]
   ) extends AnyVal {
-    type CBF = collection.generic.CanBuildFrom[Coll[B], B, Coll[B]]
-
+    private def ll = seqLikeLens(l)
+    type CBF =  scala.collection.BuildFrom[Coll[B], B, Coll[B]]
     def :+~(e: Expression[B])(implicit cbf: CBF): Expression[Mutation[A]] =
-      e.map(l :+= _)
-    def :++~(e: Expression[GenTraversableOnce[B]])(implicit cbf: CBF): Expression[Mutation[A]] =
-      e.map(l :++= _)
+      e.map(ll :+= _)
+    def :++~(e: Expression[IterableOnce[B]])(implicit cbf: CBF): Expression[Mutation[A]] =
+      e.map(ll :++= _)
     def foreachExpr(f: Lens[B, B] => Expression[Mutation[B]])(implicit cbf: CBF): Expression[Mutation[A]] =
-      f(Lens.unit).map(m => l.foreach(_ => m))
+      f(Lens.unit).map(m => ll.foreach(_ => m))
   }
 
-  implicit class EpxrSetLens[A, B, Coll[B] <: collection.SetLike[B, Coll[B]] with Set[B]](
+
+  implicit class EpxrSetLens[A, B, Coll[B] <: collection.immutable.SetOps[B, Coll, Coll[B]] with Set[B]](
     val l: Lens[A, Coll[B]]
   ) extends AnyVal {
-    type CBF = collection.generic.CanBuildFrom[Coll[B], B, Coll[B]]
-
+    private def ll = setLens(l)
+    type CBF = scala.collection.BuildFrom[Coll[B], B, Coll[B]]
     def :+~(e: Expression[B]): Expression[Mutation[A]] =
-      e.map(l :+= _)
-    def :++~(e: Expression[GenTraversableOnce[B]]): Expression[Mutation[A]] =
-      e.map(l :++= _)
+      e.map(ll :+= _)
+    def :++~(e: Expression[IterableOnce[B]]): Expression[Mutation[A]] =
+      e.map(ll :++= _)
     def foreachExpr(f: Lens[B, B] => Expression[Mutation[B]])(implicit cbf: CBF): Expression[Mutation[A]] =
-      f(Lens.unit).map(m => l.foreach(_ => m))
+      f(Lens.unit).map(m => ll.foreach(_ => m))
   }
 
   implicit class EpxrMapLens[A, K, V](
