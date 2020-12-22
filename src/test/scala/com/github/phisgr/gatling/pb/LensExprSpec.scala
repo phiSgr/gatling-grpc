@@ -108,7 +108,7 @@ class LensExprSpec extends FlatSpec with Matchers with StrictLogging {
         "barr" -> 11,
         "erasure" -> 7,
         "BOOM!" -> 5
-      ).mapValues(Bar(_))
+      ).view.mapValues(Bar(_)).toMap
     )
     fooE(session) shouldBe Success(foo)
 
@@ -126,7 +126,7 @@ class LensExprSpec extends FlatSpec with Matchers with StrictLogging {
         "barr" -> 2,
         "erasure" -> 2,
         "BOOM!" -> 2
-      ).mapValues(Bar(_))
+      ).view.mapValues(Bar(_)).toMap
     ))
   }
 

@@ -15,7 +15,7 @@ import io.grpc.health.v1.health.HealthGrpc.Health
 import io.grpc.health.v1.health.{HealthCheckRequest, HealthCheckResponse, HealthGrpc}
 import io.grpc.stub.{ServerCallStreamObserver, StreamObserver}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.Future
 import scala.util.Random._
 import scala.util.Try
