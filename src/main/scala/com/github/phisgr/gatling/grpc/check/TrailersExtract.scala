@@ -6,7 +6,7 @@ import io.gatling.core.check.{CheckMaterializer, CountCriterionExtractor, Defaul
 import io.gatling.core.session.{Expression, ExpressionSuccessWrapper}
 import io.grpc.Metadata
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 private[gatling] object TrailersExtract {
 

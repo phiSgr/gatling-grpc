@@ -1,3 +1,10 @@
+#### 0.11.0
+Scala 2.13. Gatling 3.5.0.
+
+Following the convention of Gatling, since there is no cross-build,
+the suffix `_2.xx` is removed.
+Remember to change the `%%` to `%` in your dependency.
+
 #### 0.10.1
 `DynamicGrpcProtocol.disposeChannel` for closing the dynamic channel early.
 

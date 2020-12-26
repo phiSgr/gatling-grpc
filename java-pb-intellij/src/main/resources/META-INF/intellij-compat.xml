@@ -4,9 +4,9 @@
 <intellij-compat>
     <name>Gatling-JavaPB support</name>
     <description>This provides type inference for Message.Builder macro</description>
-    <version>1.0.1</version>
+    <version>1.1.0</version>
     <vendor>George Leung</vendor>
-    <ideaVersion since-build="2018.1.0" until-build="2021.0.0">
+    <ideaVersion since-build="2018.1.0" until-build="2022.0.0">
         <extension interface="org.jetbrains.plugins.scala.lang.macros.evaluator.ScalaMacroTypeable"
                    implementation="com.github.phisgr.gatling.javapbintellij.MessageBuilderTyper">
             <description>Support for Message.Builder macro</description>

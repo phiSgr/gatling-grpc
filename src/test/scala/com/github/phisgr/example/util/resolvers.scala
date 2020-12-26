@@ -4,7 +4,7 @@ import java.net.{InetSocketAddress, URI}
 
 import io.grpc.{Attributes, EquivalentAddressGroup, NameResolver}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object ClientSideLoadBalancingResolverFactory extends NameResolver.Factory {
   override def getDefaultScheme: String = "whatever"

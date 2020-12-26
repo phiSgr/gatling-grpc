@@ -104,11 +104,11 @@ class LensExprSpec extends FlatSpec with Matchers with StrictLogging {
 
     val foo = Foo(
       barMap = Map(
-        "bar" -> 10,
-        "barr" -> 11,
-        "erasure" -> 7,
-        "BOOM!" -> 5
-      ).mapValues(Bar(_))
+        "bar" -> Bar(10),
+        "barr" -> Bar(11),
+        "erasure" -> Bar(7),
+        "BOOM!" -> Bar(5)
+      )
     )
     fooE(session) shouldBe Success(foo)
 
@@ -122,11 +122,11 @@ class LensExprSpec extends FlatSpec with Matchers with StrictLogging {
       _.barMap.foreachValueExpr(_.baz :~ $("baz"))
     )(session) shouldBe Success(Foo(
       barMap = Map(
-        "bar" -> 2,
-        "barr" -> 2,
-        "erasure" -> 2,
-        "BOOM!" -> 2
-      ).mapValues(Bar(_))
+        "bar" -> Bar(2),
+        "barr" -> Bar(2),
+        "erasure" -> Bar(2),
+        "BOOM!" -> Bar(2)
+      )
     ))
   }
 
@@ -139,7 +139,7 @@ class LensExprSpec extends FlatSpec with Matchers with StrictLogging {
 
   "Erased generics" should "be unsafe" in {
     def assertClassCastException(fooE: Expression[Foo]): Unit = {
-      val Success(foo) = fooE(session)
+      val foo = fooE(session).asInstanceOf[Success[Foo]].value
       logger.warn("We have a malformed object: {}", foo)
       // Notice that the error is thrown after the expression is evaluated
       an[ClassCastException] should be thrownBy foo.toByteArray

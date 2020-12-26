@@ -8,6 +8,11 @@ object ForToMatch {
   def toMatch(c: blackbox.Context)(tree: c.Tree): c.Tree = {
     import c.universe._
 
+    def removeEmptyMatch(t: c.Tree, paramName: TermName): c.Tree = t match {
+      case Match(Typed(Ident(`paramName`), _), List(CaseDef(Ident(termNames.WILDCARD), EmptyTree, body))) => body
+      case _ => t
+    }
+
     def matchValidation(v: c.Tree, name: TermName, result: c.Tree) = {
       q"""($v) match {
         case io.gatling.commons.validation.Success($name) => $result
@@ -17,9 +22,9 @@ object ForToMatch {
 
     tree match {
       case Apply(TypeApply(Select(v, TermName("flatMap")), _), List(Function(List(ValDef(_, name, _, _)), body))) =>
-        matchValidation(v, name, toMatch(c)(body))
+        matchValidation(v, name, toMatch(c)(removeEmptyMatch(body, name)))
       case Apply(TypeApply(Select(v, TermName("map")), _), List(Function(List(ValDef(_, name, tpt, _)), body))) =>
-        body match {
+        removeEmptyMatch(body, name) match {
           case Literal(Constant(())) if tpt.tpe =:= definitions.UnitTpe => v
           case _ => matchValidation(v, name, q"io.gatling.commons.validation.Success { $body }")
         }

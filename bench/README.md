@@ -13,20 +13,20 @@ experiments, perform baseline and negative tests that provide experimental contr
 the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
 Do not assume the numbers tell you what you want them to tell.
 Benchmark                                                           Mode  Cnt      Score      Error   Units
-TestUpdateExpr.forComplexExpr                                      thrpt   50  14658.032 ±  129.974  ops/ms
-TestUpdateExpr.forComplexExpr:·gc.alloc.rate.norm                  thrpt   50    304.000 ±    4.001    B/op
-TestUpdateExpr.forSimpleExpr                                       thrpt   50  64190.526 ±  170.913  ops/ms
-TestUpdateExpr.forSimpleExpr:·gc.alloc.rate.norm                   thrpt   50     48.000 ±    0.001    B/op
-TestUpdateExpr.matchComplexExpr                                    thrpt   50  15897.540 ±   71.606  ops/ms
-TestUpdateExpr.matchComplexExpr:·gc.alloc.rate.norm                thrpt   50    296.000 ±    0.001    B/op
-TestUpdateExpr.matchSimpleExpr                                     thrpt   50  64309.354 ±  165.874  ops/ms
-TestUpdateExpr.matchSimpleExpr:·gc.alloc.rate.norm                 thrpt   50     48.000 ±    0.001    B/op
-TestUpdateExpr.updateComplexExpr                                   thrpt   50  12262.249 ±  434.146  ops/ms
-TestUpdateExpr.updateComplexExpr:·gc.alloc.rate.norm               thrpt   50    388.800 ±   12.802    B/op
-TestUpdateExpr.updateComplexExprJava                               thrpt   50  13941.886 ±  193.865  ops/ms
-TestUpdateExpr.updateComplexExprJava:·gc.alloc.rate.norm           thrpt   50    344.000 ±    8.001    B/op
-TestUpdateExpr.updateSimpleExpr                                    thrpt   50  42030.479 ± 1527.799  ops/ms
-TestUpdateExpr.updateSimpleExpr:·gc.alloc.rate.norm                thrpt   50     92.800 ±    3.667    B/op
-TestUpdateExpr.updateSimpleExprJava                                thrpt   50  42052.846 ± 1242.218  ops/ms
-TestUpdateExpr.updateSimpleExprJava:·gc.alloc.rate.norm            thrpt   50     81.600 ±    2.400    B/op
+TestUpdateExpr.forComplexExpr                                      thrpt   50  15457.886 ±  405.010  ops/ms
+TestUpdateExpr.forComplexExpr:·gc.alloc.rate.norm                  thrpt   50    356.800 ±   13.292    B/op
+TestUpdateExpr.forSimpleExpr                                       thrpt   50  63009.362 ±  469.658  ops/ms
+TestUpdateExpr.forSimpleExpr:·gc.alloc.rate.norm                   thrpt   50     64.000 ±    0.001    B/op
+TestUpdateExpr.matchComplexExpr                                    thrpt   50  15347.674 ±  786.109  ops/ms
+TestUpdateExpr.matchComplexExpr:·gc.alloc.rate.norm                thrpt   50    344.000 ±   16.002    B/op
+TestUpdateExpr.matchSimpleExpr                                     thrpt   50  63290.079 ±  371.129  ops/ms
+TestUpdateExpr.matchSimpleExpr:·gc.alloc.rate.norm                 thrpt   50     64.000 ±    0.001    B/op
+TestUpdateExpr.updateComplexExpr                                   thrpt   50  12432.551 ±  311.176  ops/ms
+TestUpdateExpr.updateComplexExpr:·gc.alloc.rate.norm               thrpt   50    395.200 ±   10.615    B/op
+TestUpdateExpr.updateComplexExprJava                               thrpt   50  13311.706 ±  153.384  ops/ms
+TestUpdateExpr.updateComplexExprJava:·gc.alloc.rate.norm           thrpt   50    360.000 ±    0.001    B/op
+TestUpdateExpr.updateSimpleExpr                                    thrpt   50  43452.276 ± 1928.898  ops/ms
+TestUpdateExpr.updateSimpleExpr:·gc.alloc.rate.norm                thrpt   50     96.000 ±    4.001    B/op
+TestUpdateExpr.updateSimpleExprJava                                thrpt   50  45678.602 ± 1618.755  ops/ms
+TestUpdateExpr.updateSimpleExprJava:·gc.alloc.rate.norm            thrpt   50     83.200 ±    3.200    B/op
 ```

@@ -50,7 +50,7 @@ object GrpcProtocol extends StrictLogging {
       channelAttributeName: String,
       warmUp: Option[WarmUp],
       lazyParsing: Boolean
-    ) {
+    ) = {
       this(
         sharedChannel = if (shareChannel) channelBuilder.build() else null,
         shareChannel = shareChannel,

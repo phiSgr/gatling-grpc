@@ -9,8 +9,6 @@ import io.gatling.core.check.{FindCheckBuilder, MultipleFindCheckBuilder}
 import io.gatling.core.session.{Expression, Session}
 import io.grpc.{CallOptions, Metadata, MethodDescriptor}
 
-import scala.collection.breakOut
-
 trait CallDefinition[Self, Check[_], Req, Res] {
 
   private[gatling] def checks: List[Check[Res]]
@@ -35,7 +33,7 @@ trait CallDefinition[Self, Check[_], Req, Res] {
     check(mapToList(ts)(_.apply(e)): _*)
   }
 
-  private def mapToList[T, U](s: Seq[T])(f: T => U): List[U] = s.map[U, List[U]](f)(breakOut)
+  private def mapToList[T, U](s: Seq[T])(f: T => U): List[U] = s.map(f).toList
 
 
   private[gatling] def callAttributes: CallAttributes

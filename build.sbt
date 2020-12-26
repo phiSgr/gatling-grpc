@@ -1,9 +1,10 @@
 val commonSettings = Seq(
   organization := "com.github.phisgr",
-  scalaVersion := "2.12.10"
+  scalaVersion := "2.13.4",
+  crossPaths := false,
 )
 
-val gatlingVersion = "3.4.1"
+val gatlingVersion = "3.5.0"
 val gatlingCore = "io.gatling" % "gatling-core" % gatlingVersion
 
 val publishSettings = {
@@ -24,7 +25,7 @@ lazy val root = (project in file("."))
   .settings(publishSettings: _*)
   .settings(
     name := "gatling-grpc",
-    version := "0.10.1",
+    version := "0.11.0",
     inConfig(Test)(sbtprotoc.ProtocPlugin.protobufConfigSettings),
     PB.targets in Test := Seq(
       scalapb.gen() -> (sourceManaged in Test).value
@@ -41,7 +42,7 @@ lazy val root = (project in file("."))
       "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf",
       "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion,
       gatlingCore,
-      "com.github.phisgr" %% "gatling-ext" % "0.1.0",
+      "com.github.phisgr" % "gatling-ext" % "0.2.0",
       "io.gatling.highcharts" % "gatling-charts-highcharts" % gatlingVersion % "test",
       "io.gatling" % "gatling-test-framework" % gatlingVersion % "test",
       "org.scalatest" %% "scalatest" % "3.0.8" % "test",
@@ -61,7 +62,7 @@ lazy val macroSub = (project in file("macro"))
     ),
   )
 
-val gatlingJavaPbVersion = "1.0.1"
+val gatlingJavaPbVersion = "1.1.0"
 lazy val javaPb = (project in file("java-pb"))
   .settings(commonSettings: _*)
   .settings(publishSettings: _*)
@@ -85,14 +86,15 @@ lazy val javaPbIjExt = (project in file("java-pb-intellij"))
     name := "gatling-javapb-ijext",
     intellijPluginName in ThisBuild := "gatling-javapb-ijext",
     // https://www.jetbrains.com/idea/download/other.html
-    intellijBuild in ThisBuild := "202.6948.69",
+    intellijBuild in ThisBuild := "203.5981.155",
     version := gatlingJavaPbVersion,
     // https://plugins.jetbrains.com/plugin/1347-scala/versions/stable
-    intellijPlugins += "org.intellij.scala:2020.2.23".toPlugin,
+    intellijPlugins += "org.intellij.scala:2020.3.18".toPlugin,
   )
   .enablePlugins(SbtIdeaPlugin)
 
 lazy val bench = (project in file("bench"))
+  .settings(commonSettings: _*)
   .dependsOn(root, javaPb)
   .enablePlugins(JmhPlugin)
   .settings(
