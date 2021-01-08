@@ -35,25 +35,25 @@ class JavaPbExprSpec extends AnyFlatSpec with Matchers with StrictLogging {
 
   "Setting with builder" should "work" in {
     val barE: Expression[Bar] = Bar.getDefaultInstance
-      .update(_.setBaz)($("baz"))
+      .updateUncurry(_.setBaz)($("baz"))
     barE(session) shouldBe Success(Bar.newBuilder().setBaz(2).build())
 
     val fooE: Expression[Foo] = newFoo(List(newBar(100)))
-      .update(_.getBarBuilder(0).setBaz)($("baz"))
+      .updateUncurry(_.getBarBuilder(0).setBaz)($("baz"))
     fooE(session) shouldBe Success(newFoo(bar = List(newBar(2))))
   }
 
   "Modifying with builder" should "work" in {
     val barE: Expression[Bar] = $[Bar]("bar")
-      .update(builder => (baz: Int) => builder.setBaz(builder.getBaz - baz))($("baz"))
+      .updateUncurry(builder => (baz: Int) => builder.setBaz(builder.getBaz - baz))($("baz"))
     barE(session) shouldBe Success(newBar(-1))
   }
 
   "Handling list with builder" should "work" in {
     val fooE: Expression[Foo] = Foo.getDefaultInstance
-      .update(_.addBarBuilder.setBaz)($("baz"))
-      .update[Bar](_.addBar)($("bar"))
-      .update(_.addAllBar)($("bars"))
+      .updateUncurry(_.addBarBuilder.setBaz)($("baz"))
+      .updateUncurry[Bar](_.addBar)($("bar"))
+      .updateUncurry(_.addAllBar)($("bars"))
     val foo = newFoo(
       bar = List(
         newBar(2), newBar(1), newBar(5), newBar(6)
@@ -61,7 +61,7 @@ class JavaPbExprSpec extends AnyFlatSpec with Matchers with StrictLogging {
     )
     fooE(session) shouldBe Success(foo)
 
-    fooE.update(
+    fooE.updateUncurry(
       builder => (baz: Int) => builder.getBarBuilderList.forEach(_.setBaz(baz))
     )($("baz"))(session) shouldBe Success(
       newFoo(
@@ -70,7 +70,7 @@ class JavaPbExprSpec extends AnyFlatSpec with Matchers with StrictLogging {
         )
       )
     )
-    fooE.update(_.getBarBuilder(2).setBaz)($("baz"))(session) shouldBe Success(
+    fooE.updateUncurry(_.getBarBuilder(2).setBaz)($("baz"))(session) shouldBe Success(
       newFoo(
         bar = List(
           newBar(2), newBar(1), newBar(2), newBar(6)
@@ -84,9 +84,9 @@ class JavaPbExprSpec extends AnyFlatSpec with Matchers with StrictLogging {
       .asInstanceOf[Collector[String, Any, util.Map[String, Bar]]]
 
     val fooE: Expression[Foo] = Foo.getDefaultInstance
-      .update(builder => (builder.putBarMap _).tupled)($("stringBar"))
-      .update(_.putAllBarMap)($[util.List[String]]("generics").map(_.stream().collect(listToMap)))
-      .update(_.putAllBarMap)($("stringBarMap"))
+      .updateUncurry(builder => (builder.putBarMap _).tupled)($("stringBar"))
+      .updateUncurry(_.putAllBarMap)($[util.List[String]]("generics").map(_.stream().collect(listToMap)))
+      .updateUncurry(_.putAllBarMap)($("stringBarMap"))
     val foo = newFoo(
       barMap = Map(
         "bar" -> newBar(10),
@@ -98,7 +98,7 @@ class JavaPbExprSpec extends AnyFlatSpec with Matchers with StrictLogging {
 
     fooE(session) shouldBe Success(foo)
 
-    fooE.update(builder => (baz: Int) =>
+    fooE.updateUncurry(builder => (baz: Int) =>
       builder.getBarMapMap.forEach { (key, bar) =>
         builder.putBarMap(key, bar.toBuilder.setBaz(baz).build())
       }
@@ -114,11 +114,11 @@ class JavaPbExprSpec extends AnyFlatSpec with Matchers with StrictLogging {
 
   "Wrong session variables" should "fail" in {
     Bar.getDefaultInstance
-      .update(_.setBaz)($("bar"))(session) shouldBe
+      .updateUncurry(_.setBaz)($("bar"))(session) shouldBe
       Failure("Value baz: 1\n is of type com.github.phisgr.pb.complex.Bar, expected int")
 
     Bar.getDefaultInstance
-      .update(_.setBaz)($("nonExisting"))(session) shouldBe
+      .updateUncurry(_.setBaz)($("nonExisting"))(session) shouldBe
       Failure("No attribute named 'nonExisting' is defined")
   }
 
@@ -132,12 +132,13 @@ class JavaPbExprSpec extends AnyFlatSpec with Matchers with StrictLogging {
 
     assertClassCastException(
       newFoo(bar = List(newBar(1)))
-        .update(_.addAllBar)($("generics"))
+        .updateUncurry(_.addAllBar)($("generics"))
     )
+
     import io.gatling.core.Predef.stringToExpression
     assertClassCastException(
       newFoo(bar = List(newBar(1)))
-        .update(_.addAllBar)("${generics}")
+        .updateUncurry(_.addAllBar)("${generics}")
     )
   }
 }

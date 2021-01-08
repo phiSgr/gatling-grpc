@@ -64,8 +64,7 @@ lazy val macroSub = (project in file("macro"))
   )
 
 // Usually the two update together (for specifying IntelliJ compatibility)
-// but there is a slight API change this time
-val gatlingJavaPbVersion = "1.1.1"
+val gatlingJavaPbVersion = "1.2.0-MACRO"
 val gatlingJavaPbExtVersion = "1.1.0"
 lazy val javaPb = (project in file("java-pb"))
   .settings(commonSettings: _*)

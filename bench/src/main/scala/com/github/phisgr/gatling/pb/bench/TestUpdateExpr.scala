@@ -39,6 +39,16 @@ class TestUpdateExpr {
   }
 
   @Benchmark
+  def updateSimpleExprJavaUncurry(): Validation[Test.SimpleMessage] = {
+    SimpleExprJavaUncurry(Session1)
+  }
+
+  @Benchmark
+  def updateComplexExprJavaUncurry(): Validation[Test.ComplexMessage] = {
+    ComplexExprJavaUncurry(Session1)
+  }
+
+  @Benchmark
   def forSimpleExpr(): Validation[Test.SimpleMessage] = {
     SimpleExprFor(Session1)
   }
@@ -60,17 +70,25 @@ class TestUpdateExpr {
 }
 
 object TestUpdateExpr {
+
+  private val nameExpression: Expression[String] = $("name")
+  private val countExpression: Expression[Int] = $("count")
+
   private val SimpleExpr = SimpleMessage.defaultInstance.updateExpr(
-    _.s :~ $("name")
+    _.s :~ nameExpression
   )
 
   private val SimpleExprJava: Expression[Test.SimpleMessage] =
     Test.SimpleMessage.getDefaultInstance
-      .update(_.setS)($("name"))
+      .update(_.setS)(nameExpression)
+
+  private val SimpleExprJavaUncurry: Expression[Test.SimpleMessage] =
+    Test.SimpleMessage.getDefaultInstance
+      .updateUncurry(_.setS)(nameExpression)
 
   private val SimpleExprFor: Expression[Test.SimpleMessage] = { s: Session =>
     for {
-      name <- s("name").validate[String]
+      name <- nameExpression(s)
     } yield {
       val builder = Test.SimpleMessage.newBuilder()
       builder.setS(name)
@@ -81,7 +99,7 @@ object TestUpdateExpr {
   private val SimpleExprMatch: Expression[Test.SimpleMessage] = { s: Session =>
     forToMatch {
       for {
-        name <- s("name").validate[String]
+        name <- nameExpression(s)
       } yield {
         val builder = Test.SimpleMessage.newBuilder()
         builder.setS(name)
@@ -91,19 +109,24 @@ object TestUpdateExpr {
   }
 
   private val ComplexExpr = ComplexMessage.defaultInstance.updateExpr(
-    _.m.s :~ $("name"),
-    _.i :~ $("count")
+    _.m.s :~ nameExpression,
+    _.i :~ countExpression
   )
 
   private val ComplexExprJava: Expression[Test.ComplexMessage] =
     Test.ComplexMessage.getDefaultInstance
-      .update(_.getMBuilder.setS)($("name"))
-      .update(_.setI)($("count"))
+      .update(_.getMBuilder.setS)(nameExpression)
+      .update(_.setI)(countExpression)
+
+  private val ComplexExprJavaUncurry: Expression[Test.ComplexMessage] =
+    Test.ComplexMessage.getDefaultInstance
+      .updateUncurry(_.getMBuilder.setS)(nameExpression)
+      .updateUncurry(_.setI)(countExpression)
 
   private val ComplexExprFor: Expression[Test.ComplexMessage] = { s: Session =>
     for {
-      name <- s("name").validate[String]
-      count <- s("count").validate[Int]
+      name <- nameExpression(s)
+      count <- countExpression(s)
     } yield {
       val builder = Test.ComplexMessage.newBuilder()
       builder.getMBuilder.setS(name)
@@ -115,8 +138,8 @@ object TestUpdateExpr {
   private val ComplexExprMatch: Expression[Test.ComplexMessage] = { s: Session =>
     forToMatch {
       for {
-        name <- s("name").validate[String]
-        count <- s("count").validate[Int]
+        name <- nameExpression(s)
+        count <- countExpression(s)
       } yield {
         val builder = Test.ComplexMessage.newBuilder()
         builder.getMBuilder.setS(name)
