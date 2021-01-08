@@ -28,7 +28,8 @@ lazy val root = (project in file("."))
     version := "0.11.0",
     inConfig(Test)(sbtprotoc.ProtocPlugin.protobufConfigSettings),
     PB.targets in Test := Seq(
-      scalapb.gen() -> (sourceManaged in Test).value
+      scalapb.gen() -> (sourceManaged in Test).value,
+      PB.gens.java -> (sourceManaged in Test).value,
     ),
     scalacOptions ++= Seq(
       "-language:existentials",
@@ -45,7 +46,7 @@ lazy val root = (project in file("."))
       "com.github.phisgr" % "gatling-ext" % "0.2.0",
       "io.gatling.highcharts" % "gatling-charts-highcharts" % gatlingVersion % "test",
       "io.gatling" % "gatling-test-framework" % gatlingVersion % "test",
-      "org.scalatest" %% "scalatest" % "3.0.8" % "test",
+      "org.scalatest" %% "scalatest" % "3.2.2" % "test",
     ),
   )
   .dependsOn(macroSub % "compile-internal")
@@ -62,7 +63,10 @@ lazy val macroSub = (project in file("macro"))
     ),
   )
 
-val gatlingJavaPbVersion = "1.1.0"
+// Usually the two update together (for specifying IntelliJ compatibility)
+// but there is a slight API change this time
+val gatlingJavaPbVersion = "1.1.1"
+val gatlingJavaPbExtVersion = "1.1.0"
 lazy val javaPb = (project in file("java-pb"))
   .settings(commonSettings: _*)
   .settings(publishSettings: _*)
@@ -70,7 +74,7 @@ lazy val javaPb = (project in file("java-pb"))
     name := "gatling-javapb",
     version := gatlingJavaPbVersion,
     libraryDependencies ++= Seq(
-      "com.google.protobuf" % "protobuf-java" % "3.11.4",
+      "com.google.protobuf" % "protobuf-java" % "3.14.0",
       gatlingCore,
     ),
     scalacOptions ++= Seq(
@@ -78,6 +82,7 @@ lazy val javaPb = (project in file("java-pb"))
       "-language:experimental.macros",
     ),
   )
+  .dependsOn(root % "test->test")
 
 lazy val javaPbIjExt = (project in file("java-pb-intellij"))
   .settings(commonSettings: _*)
@@ -87,7 +92,7 @@ lazy val javaPbIjExt = (project in file("java-pb-intellij"))
     intellijPluginName in ThisBuild := "gatling-javapb-ijext",
     // https://www.jetbrains.com/idea/download/other.html
     intellijBuild in ThisBuild := "203.5981.155",
-    version := gatlingJavaPbVersion,
+    version := gatlingJavaPbExtVersion,
     // https://plugins.jetbrains.com/plugin/1347-scala/versions/stable
     intellijPlugins += "org.intellij.scala:2020.3.18".toPlugin,
   )

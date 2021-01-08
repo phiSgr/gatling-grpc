@@ -5,9 +5,10 @@ import com.github.phisgr.pb.complex.complex.{Bar, Foo}
 import com.typesafe.scalalogging.StrictLogging
 import io.gatling.commons.validation.{Failure, Success}
 import io.gatling.core.session.{Expression, Session}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class LensExprSpec extends FlatSpec with Matchers with StrictLogging {
+class LensExprSpec extends AnyFlatSpec with Matchers with StrictLogging {
   private val session = Session(
     scenario = "Scenario",
     userId = 1L,

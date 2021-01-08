@@ -20,18 +20,18 @@ This is not included in the Gatling-gRPC library to avoid confusion.
 Assuming you're using
 [Gatling with Gradle](https://gatling.io/docs/current/extensions/gradle_plugin/),
 add this line to the `dependencies`.  
-`gatling 'com.github.phisgr:gatling-javapb:1.1.0'`
+`gatling 'com.github.phisgr:gatling-javapb:1.1.1'`
 
-Below is copied from the test in
-[`bench`](../bench/src/main/scala/com/github/phisgr/gatling/pb/bench/TestUpdateExpr.scala).
+Below is copied from
+[the unit tests](./src/test/scala/com/github/phisgr/gatling/javapb/JavaPbExprSpec.scala).
 For the `.update` extension method to work,
 you need to `import com.github.phisgr.gatling.javapb._`.
 
 ```scala
-private val ComplexExprJava: Expression[Test.ComplexMessage] =
-  Test.ComplexMessage.getDefaultInstance
-    .update(_.getMBuilder.setS)($("name"))
-    .update(_.setI)($("count"))
+val fooE: Expression[Foo] = Foo.getDefaultInstance
+  .update(_.addBarBuilder.setBaz)($("baz"))
+  .update[Bar](_.addBar)($("bar"))
+  .update(_.addAllBar)($("bars"))
 ```
 
 IntelliJ will insert a pair of brackets after the setter,

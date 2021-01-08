@@ -8,7 +8,7 @@ import io.gatling.core.session.{Expression, Session}
 package object javapb {
   private type BuilderMutation[B] = (B, Session) => Failure // nullable
 
-  private case class MutationWithExpression[B <: Message.Builder, F](setter: B => F => Message.Builder, e: Expression[F])
+  private case class MutationWithExpression[B <: Message.Builder, F](setter: B => F => Any, e: Expression[F])
     extends BuilderMutation[B] {
     override def apply(builder: B, session: Session): Failure = {
       e(session) match {
@@ -25,7 +25,7 @@ package object javapb {
     private[javapb] val original: Expression[M],
     private[javapb] val reversedMutations: List[BuilderMutation[B]]
   ) {
-    def update[Field](setter: B => Field => Message.Builder)(value: Expression[Field]) =
+    def update[Field](setter: B => Field => Any)(value: Expression[Field]) =
       new MessageExpressionUpdater[M, B](original, MutationWithExpression(setter, value) :: reversedMutations)
   }
 
