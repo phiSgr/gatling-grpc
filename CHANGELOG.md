@@ -1,3 +1,6 @@
+#### 0.11.1
+Bugfix: `halfClose` was not called on client stream complete.
+
 #### 0.11.0
 Scala 2.13. Gatling 3.5.0.
 

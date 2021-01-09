@@ -1,9 +1,6 @@
 package com.github.phisgr.example
 
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, ThreadLocalRandom, TimeUnit}
-import java.util.{Timer, TimerTask}
-
+import ch.qos.logback.classic.Level
 import com.github.phisgr.example.chat._
 import com.github.phisgr.example.util._
 import com.google.common.collect.Sets
@@ -15,13 +12,17 @@ import io.grpc.health.v1.health.HealthGrpc.Health
 import io.grpc.health.v1.health.{HealthCheckRequest, HealthCheckResponse, HealthGrpc}
 import io.grpc.stub.{ServerCallStreamObserver, StreamObserver}
 
-import scala.jdk.CollectionConverters._
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, ThreadLocalRandom, TimeUnit}
+import java.util.{Timer, TimerTask}
 import scala.concurrent.Future
+import scala.jdk.CollectionConverters._
 import scala.util.Random._
 import scala.util.Try
 import scala.util.control.NonFatal
 
 object TestServer extends StrictLogging {
+  tuneLogging(this.getClass.getName, Level.INFO)
 
   val accounts: collection.concurrent.Map[String, String] = new ConcurrentHashMap[String, String]().asScala
   val listeners = Sets.newConcurrentHashSet[ServerCallStreamObserver[ChatMessage]]()
@@ -129,7 +130,9 @@ object TestServer extends StrictLogging {
             }
           }
           override def onError(t: Throwable): Unit = ()
-          override def onCompleted(): Unit = ()
+          override def onCompleted(): Unit = {
+            logger.info("Client completed.")
+          }
         }
       }
 

@@ -108,6 +108,7 @@ class ClientStreamCall[Req, Res](
   }
 
   def completeAndWait(session: Session, next: Action): Unit = {
+    call.halfClose()
     startTimestamp = clock.nowMillis
     this.session = session
     this.next = next
