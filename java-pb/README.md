@@ -37,6 +37,13 @@ val fooE: Expression[Foo] = Foo.getDefaultInstance
 IntelliJ will insert a pair of brackets after the setter,
 delete them as we need the function reference.
 
+## Demo Project
+
+In the [demo project with Gradle](https://github.com/phiSgr/gatling-grpc-gradle-demo),
+the Java generated code is used.
+
+---
+
 ### Call for help
 
 Unfortunately in the Java Protobuf classes, there is not a linkage of

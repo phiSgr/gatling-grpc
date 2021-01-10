@@ -10,6 +10,9 @@ I assume you are running the tests using the
 For a quickstart guide, see this
 [Medium article](https://medium.com/@georgeleung_7777/a-demo-of-gatling-grpc-bc92158ca808).
 
+For usage with the [Gradle Gatling plugin](https://gatling.io/docs/current/extensions/gradle_plugin/),
+see this [example project](https://github.com/phiSgr/gatling-grpc-gradle-demo).
+
 To use this library, add this library to the test dependencies
 along with the two required by Gatling.
 
