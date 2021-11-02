@@ -1,3 +1,13 @@
+#### 0.12.0
+
+Gatling 3.6.1. ScalaPB 0.11.6.
+
+Allows the virtual user to wait for the (server/bidi) stream to end
+or for a new message to come,
+blocking the flow of that virtual user.
+
+Headers can be now specified in the `Protocol` level.
+
 #### 0.11.1
 Bugfix: `halfClose` was not called on client stream complete.
 

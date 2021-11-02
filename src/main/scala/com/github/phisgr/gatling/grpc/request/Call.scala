@@ -14,7 +14,12 @@ abstract class Call[Req, Res](
   method: MethodDescriptor[Req, Res]
 ) extends RequestAction with NameGen {
 
-  private[this] val headerPairs = callAttributes.reversedHeaders.reverse.toArray
+  private[this] val component: GrpcProtocol.GrpcComponent = {
+    val protocolKey = callAttributes.protocolOverride.fold[GrpcProtocol.Key](GrpcProtocol.GrpcProtocolKey)(_.overridingKey)
+    ctx.protocolComponentsRegistry.components(protocolKey)
+  }
+
+  private[this] val headerPairs = (callAttributes.reversedHeaders ++ component.reversedHeaders).reverse.toArray
   protected def resolveHeaders(session: Session): Validation[Metadata] = {
     val md = new Metadata()
     val size = headerPairs.length
@@ -28,11 +33,6 @@ abstract class Call[Req, Res](
   }
 
   protected val callOptions: Expression[CallOptions] = callAttributes.callOptions
-
-  private[this] val component: GrpcProtocol.GrpcComponent = {
-    val protocolKey = callAttributes.protocolOverride.fold[GrpcProtocol.Key](GrpcProtocol.GrpcProtocolKey)(_.overridingKey)
-    ctx.protocolComponentsRegistry.components(protocolKey)
-  }
 
   protected def needParsed: Boolean
   protected def mayNeedDelayedParsing: Boolean

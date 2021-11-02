@@ -5,14 +5,14 @@ import io.gatling.core.Predef.Session
 import io.gatling.core.session.Expression
 import io.grpc.Metadata
 
-case class HeaderPair[T](key: Metadata.Key[T], value: Expression[T]) {
+case class HeaderPair[T](key: Metadata.Key[T], value: Expression[T], optional: Boolean = false) {
   def mutateMetadata(session: Session, headers: Metadata): Failure = {
     value(session) match {
       case Success(value) =>
         headers.put(key, value)
         null
       case f@Failure(_) =>
-        f
+        if (optional) null else f
     }
   }
 }

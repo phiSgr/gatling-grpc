@@ -1,10 +1,10 @@
 val commonSettings = Seq(
   organization := "com.github.phisgr",
-  scalaVersion := "2.13.4",
+  scalaVersion := "2.13.6",
   crossPaths := false,
 )
 
-val gatlingVersion = "3.5.0"
+val gatlingVersion = "3.6.1"
 val gatlingCore = "io.gatling" % "gatling-core" % gatlingVersion
 
 val publishSettings = {
@@ -25,7 +25,7 @@ lazy val root = (project in file("."))
   .settings(publishSettings: _*)
   .settings(
     name := "gatling-grpc",
-    version := "0.11.1",
+    version := "0.12.0",
     inConfig(Test)(sbtprotoc.ProtocPlugin.protobufConfigSettings),
     PB.targets in Test := Seq(
       scalapb.gen() -> (sourceManaged in Test).value,

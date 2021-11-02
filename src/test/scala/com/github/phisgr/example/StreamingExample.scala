@@ -25,10 +25,18 @@ class StreamingExample extends Simulation {
 
   tuneLogging(classOf[GrpcProtocol].getName, Level.INFO)
 
-  val timeExpression: Expression[Long] = { _ =>
-    // pretend there's clock differences
-    System.currentTimeMillis() + ThreadLocalRandom.current().nextInt(-5, 5)
+  val sendMessageDuration = 55.seconds
+  val simulationDuration = 60.seconds
+
+  val maxSendDelay = 1.second
+
+  val lastMessageTillEnd = {
+    val raw = (simulationDuration - sendMessageDuration).toMillis
+    val allowedError = raw / 20
+    (raw - allowedError) to (raw + allowedError + maxSendDelay.toMillis)
   }
+
+  val timeExpression: Expression[Long] = { _ => System.currentTimeMillis() }
 
   val listenCall = grpc("Listen")
     .serverStream(streamName = "listener")
@@ -44,10 +52,17 @@ class StreamingExample extends Simulation {
       listenCall
         .start(ChatServiceGrpc.METHOD_LISTEN)(Empty.defaultInstance)
         .timestampExtractor { (session, message, _) =>
-          if (session.userId < 200) message.time - 10 else TimestampExtractor.IgnoreMessage
+          if (session.userId < 20) {
+            // Let's see how Gatling handles negative response times
+            message.time + ThreadLocalRandom.current().nextInt(-5, 5)
+          } else {
+            // Cut down log size by ignoring other virtual users
+            TimestampExtractor.IgnoreMessage
+          }
         }
-        .extract(_.username.some)(_ saveAs "previousUsername")
-        .sessionCombiner(SessionCombiner.pick("previousUsername"))
+        .extract(_.username.some)(_ saveAs "prevUsername")
+        .extract(_.time.some)(_ saveAs "prevTime")
+        .sessionCombiner(SessionCombiner.pick("prevUsername", "prevTime"))
         .endCheck(statusCode is Status.Code.OK)
     )
     .repeat(5) {
@@ -55,7 +70,27 @@ class StreamingExample extends Simulation {
         .exec(listenCall.copy(requestName = "Reconciliate").reconciliate)
         .exec { session =>
           if (session.userId == 100) {
-            println(s"previousUsername is ${session.attributes.get("previousUsername")}")
+            println(s"prevUsername is ${session.attributes.get("prevUsername")}")
+          }
+          session
+        }
+        .exec(listenCall.copy(requestName = "Reconciliate").reconciliate(waitFor = NextMessage))
+        .exec { session =>
+          val diff = System.currentTimeMillis() - session.attributes("prevTime").asInstanceOf[Long]
+
+          if (session.attributes.contains(listenCall.streamName)) {
+            require(
+              diff <= 4,
+              "This hook should be immediately run after receiving, " +
+                "which should not be long after sending. " +
+                s"But diff is ${diff}ms."
+            )
+          } else { // stream has ended
+            require(
+              lastMessageTillEnd.contains(diff),
+              s"Last message sent should be around ${simulationDuration - sendMessageDuration} before simulation end." +
+                s"But diff is ${diff}ms."
+            )
           }
           session
         }
@@ -75,7 +110,7 @@ class StreamingExample extends Simulation {
       grpc("Already Exists")
         .bidiStream(streamName = "chatter")
         .connect(ChatServiceGrpc.METHOD_CHAT)
-        .extract(_.time.some)(_ gt System.currentTimeMillis())
+        .extract(_.time.some)(_ gt timeExpression)
         .callOptions(CallOptions.DEFAULT.withDeadlineAfter(10, TimeUnit.HOURS))
         .timestampExtractor(TimestampExtractor.Ignore)
         .sessionCombiner(SessionCombiner.NoOp)
@@ -90,8 +125,8 @@ class StreamingExample extends Simulation {
         .bidiStream(streamName = "Chatter")
         .send(Empty.defaultInstance)
     )
-    .during(55.seconds) {
-      pause(500.millis, 1.second)
+    .during(sendMessageDuration) {
+      pause(500.millis, maxSendDelay)
         .exec(
           chatCall.send(
             ChatMessage.defaultInstance.updateExpr(
@@ -105,6 +140,11 @@ class StreamingExample extends Simulation {
     .exec(complete)
     .exec(chatCall.copy(requestName = "Send after complete").send(ChatMessage.defaultInstance))
     .exec(complete)
+    .exec(chatCall.copy(requestName = "Wait for end.").reconciliate(waitFor = StreamEnd))
+    .exec { session =>
+      require(!session.attributes.contains(chatCall.streamName))
+      session
+    }
 
 
   val endsWithHi: Matcher[String] = new Matcher[String] {
@@ -140,8 +180,7 @@ class StreamingExample extends Simulation {
 
   setUp(
     chatter.inject(atOnceUsers(10)),
-    // if a virtual user enters at a second later than all exits, log analyzing fails
-    listener.inject(atOnceUsers(100), rampUsers(10000).during(59.seconds)),
+    listener.inject(rampUsers(100).during(30.seconds)),
     failure.inject(atOnceUsers(2))
-  ).protocols(grpcConf).maxDuration(1.minute).exponentialPauses
+  ).protocols(grpcConf).maxDuration(simulationDuration).exponentialPauses
 }

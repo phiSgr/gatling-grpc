@@ -15,6 +15,7 @@ class GrpcExample extends Simulation {
 
   val grpcConf = grpc(managedChannelBuilder(name = "localhost", port = 8080).usePlaintext())
     .warmUpCall(ChatServiceGrpc.METHOD_GREET, GreetRequest.defaultInstance)
+    .header(TokenHeaderKey, optional = true)($("token"))
   val emptyGrpc = grpc(managedChannelBuilder(name = "localhost", port = 9999).usePlaintext())
 
   val greetPayload: Expression[GreetRequest] = GreetRequest(name = "World").updateExpr(
@@ -24,11 +25,24 @@ class GrpcExample extends Simulation {
   val successfulCall = grpc("Success")
     .rpc(ChatServiceGrpc.METHOD_GREET)
     .payload(greetPayload)
-    .header(TokenHeaderKey)($("token"))
     .extract(_.data.split(' ').headOption)(_ saveAs "s")
 
   val s = scenario("Example")
     .feed(csv("usernames.csv")) // the first two are duplicated to force an ALREADY_EXISTS error
+    .exec(
+      grpc("Expect UNAUTHENTICATED")
+        .rpc(ChatServiceGrpc.METHOD_GREET)
+        .payload(greetPayload)
+        .check(
+          statusCode is Status.Code.UNAUTHENTICATED,
+          statusDescription.notExists,
+          trailer(ErrorResponseKey) is CustomError("You are not authenticated!"),
+          trailer(ErrorResponseKey).find(1).notExists,
+          trailer(ErrorResponseKey).findAll is List(CustomError("You are not authenticated!")),
+          trailer(ErrorResponseKey).count is 1,
+          trailer(TokenHeaderKey).count is 0
+        )
+    )
     .exec(
       grpc("Register")
         .rpc(ChatServiceGrpc.METHOD_REGISTER)
@@ -68,30 +82,14 @@ class GrpcExample extends Simulation {
       grpc("Trigger logging")
         .rpc(ChatServiceGrpc.METHOD_GREET)
         .payload(greetPayload)
-        .header(TokenHeaderKey)($("token"))
         .check(statusCode is Status.Code.NOT_FOUND)
     )
     .repeat(1000) {
       exec(successfulCall)
         .exec(
-          grpc("Expect UNAUTHENTICATED")
-            .rpc(ChatServiceGrpc.METHOD_GREET)
-            .payload(greetPayload)
-            .check(
-              statusCode is Status.Code.UNAUTHENTICATED,
-              statusDescription.notExists,
-              trailer(ErrorResponseKey) is CustomError("You are not authenticated!"),
-              trailer(ErrorResponseKey).find(1).notExists,
-              trailer(ErrorResponseKey).findAll is List(CustomError("You are not authenticated!")),
-              trailer(ErrorResponseKey).count is 1,
-              trailer(TokenHeaderKey).count is 0
-            )
-        )
-        .exec(
           grpc("Expect PERMISSION_DENIED")
             .rpc(ChatServiceGrpc.METHOD_GREET)
             .payload(GreetRequest(username = "DoesNotExist"))
-            .header(TokenHeaderKey)($("token"))
             .check(statusCode is Status.Code.PERMISSION_DENIED)
         )
         .exec(
@@ -103,14 +101,12 @@ class GrpcExample extends Simulation {
                 _.username :~ $("username")
               )
             )
-            .header(TokenHeaderKey)($("token"))
             .extract(_.data.some)(_ is "Server says: Hello Server!")
         )
         .exec(
           grpc("Extract multiple")
             .rpc(ChatServiceGrpc.METHOD_GREET)
             .payload(greetPayload)
-            .header(TokenHeaderKey)($("token"))
             .extractMultiple(_.data.split(' ').toSeq.some)(
               _.count is 4,
               _.find(10).notExists,
@@ -123,7 +119,6 @@ class GrpcExample extends Simulation {
       grpc("Extraction crash")
         .rpc(ChatServiceGrpc.METHOD_GREET)
         .payload(greetPayload)
-        .header(TokenHeaderKey)($("token"))
         .extract(_.data.split(' ')(10).some)(_.exists) // This will crash, see _.find(10) above
     )
 

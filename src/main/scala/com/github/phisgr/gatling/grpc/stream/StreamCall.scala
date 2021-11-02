@@ -113,6 +113,17 @@ abstract class StreamCall[Req, Res, State >: ServerStreamState](
       }
     }
     logger.trace(dump)
+
+    if (this.waitType eq NextMessage) {
+      val session = this.mainSession
+      val next = this.mainCont
+
+      this.mainSession = null
+      this.mainCont = null
+      this.waitType = NoWait
+
+      combineAndNext(mainSession = session, next = next, close = false)
+    }
   }
 
   def onServerCompleted(grpcStatus: Status, trailers: Metadata, completeTimeMillis: Long): Unit = {
@@ -163,11 +174,27 @@ abstract class StreamCall[Req, Res, State >: ServerStreamState](
       }
     }
     logger.trace(dump)
+
+    if (this.mainSession ne null) {
+      combineAndNext(mainSession = this.mainSession, next = this.mainCont, close = true)
+    }
   }
 
-  def combineState(mainSession: Session, next: Action): Unit = {
-    combineAndNext(mainSession, next, close = state.isInstanceOf[Completed])
+  private[this] var mainSession: Session = _
+  private[this] var mainCont: Action = _
+  private[this] var waitType: WaitType = NoWait
+
+  def combineState(mainSession: Session, next: Action, waitType: WaitType): Unit = {
+    val completed = state.isInstanceOf[Completed]
+    if (!completed && (waitType ne NoWait)) {
+      this.mainSession = mainSession
+      this.mainCont = next
+      this.waitType = waitType
+    } else {
+      combineAndNext(mainSession, next, close = completed)
+    }
   }
+
   def cancel(mainSession: Session, next: Action): Unit = {
     combineAndNext(mainSession, next, close = true)
     call.cancel(null, Cancelled)
@@ -181,8 +208,8 @@ abstract class StreamCall[Req, Res, State >: ServerStreamState](
   }
 }
 
-object StreamCall {
-  private[gatling] object Cancelled extends NoStackTrace
+private[gatling] object StreamCall {
+  object Cancelled extends NoStackTrace
 
   sealed trait BidiStreamState
   sealed trait ServerStreamState extends BidiStreamState
@@ -200,4 +227,9 @@ object StreamCall {
       Success(())
     }
   }
+
+  sealed trait WaitType
+  case object NoWait extends WaitType
+  case object NextMessage extends WaitType
+  case object StreamEnd extends WaitType
 }

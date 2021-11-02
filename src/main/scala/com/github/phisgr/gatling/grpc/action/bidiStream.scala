@@ -5,7 +5,7 @@ import com.github.phisgr.gatling.generic.SessionCombiner
 import com.github.phisgr.gatling.grpc.check.GrpcResponse.GrpcStreamEnd
 import com.github.phisgr.gatling.grpc.check.StreamCheck
 import com.github.phisgr.gatling.grpc.request.CallAttributes
-import com.github.phisgr.gatling.grpc.stream.StreamCall.ensureNoStream
+import com.github.phisgr.gatling.grpc.stream.StreamCall.{WaitType, ensureNoStream}
 import com.github.phisgr.gatling.grpc.stream.{BidiStreamCall, ClientStreamer, TimestampExtractor}
 import io.gatling.commons.util.Clock
 import io.gatling.commons.validation.Validation
@@ -88,13 +88,13 @@ class BidiStreamStartAction[Req: ClassTag, Res](
   override val name: String = genName("serverStreamStart")
 }
 
-class StreamCompleteBuilder(requestName: Expression[String], streamName: String) extends ActionBuilder {
+class StreamCompleteBuilder(requestName: Expression[String], streamName: String, waitType: WaitType) extends ActionBuilder {
   override def build(ctx: ScenarioContext, next: Action): Action =
     new StreamMessageAction(requestName, ctx, next, baseName = "StreamComplete", direction = "bidi") {
       override def sendRequest(requestName: String, session: Session): Validation[Unit] = forToMatch {
         for {
           call <- fetchCall[BidiStreamCall[_, _]](streamName, session)
-          _ <- call.onClientCompleted(session, next)
+          _ <- call.onClientCompleted(session, next, waitType)
         } yield ()
       }
     }

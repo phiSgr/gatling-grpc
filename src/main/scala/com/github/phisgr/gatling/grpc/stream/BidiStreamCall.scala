@@ -75,7 +75,7 @@ class BidiStreamCall[Req, Res](
     }
   }
 
-  def onClientCompleted(session: Session, next: Action): Validation[Unit] = {
+  def onClientCompleted(session: Session, next: Action, waitType: WaitType): Validation[Unit] = {
     state match {
       case Receiving =>
         logger.error(s"Client completed bidi stream $streamName twice")
@@ -87,7 +87,7 @@ class BidiStreamCall[Req, Res](
       case _: Completed =>
         logger.debug(s"Client issued complete order but stream $streamName already completed")
     }
-    combineState(mainSession = session, next)
+    combineState(mainSession = session, next, waitType)
     Success(())
   }
 

@@ -1,6 +1,7 @@
 package com.github.phisgr.gatling.grpc.request
 
 import com.github.phisgr.gatling.grpc.action._
+import com.github.phisgr.gatling.grpc.stream.StreamCall.{NoWait, WaitType}
 import io.gatling.core.session.Expression
 import io.grpc.MethodDescriptor
 
@@ -33,7 +34,11 @@ sealed abstract class ListeningStream private[gatling] {
   def direction: String
 
   def cancelStream = new StreamCancelBuilder(requestName, streamName, direction)
-  def reconciliate = new StreamReconciliateBuilder(requestName, streamName, direction)
+  def reconciliate(waitFor: WaitType = NoWait) =
+    new StreamReconciliateBuilder(requestName, streamName, direction, waitFor)
+
+  // Keep the nice looking no-parenthesis call syntax
+  def reconciliate: StreamReconciliateBuilder = reconciliate()
 }
 
 case class ServerStream private[gatling](
@@ -60,7 +65,10 @@ case class BidiStream private[gatling](
   }
 
   def send[Req](req: Expression[Req]) = new StreamSendBuilder(requestName, streamName, req, direction = direction)
-  def complete = new StreamCompleteBuilder(requestName, streamName)
+  def complete(waitFor: WaitType = NoWait) = new StreamCompleteBuilder(requestName, streamName, waitFor)
+
+  // Keep the nice looking no-parenthesis call syntax
+  def complete: StreamCompleteBuilder = complete()
 }
 
 case class ClientStream private[gatling](

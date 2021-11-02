@@ -1,7 +1,6 @@
 package com.github.phisgr.gatling.grpc.protocol
 
-import java.util.UUID
-
+import com.github.phisgr.gatling.grpc.HeaderPair
 import com.github.phisgr.gatling.grpc.action.{DisposeDynamicChannel, SetDynamicChannelBuilder}
 import com.typesafe.scalalogging.StrictLogging
 import io.gatling.commons.util.Throwables._
@@ -10,13 +9,14 @@ import io.gatling.core.action.Action
 import io.gatling.core.action.builder.ActionBuilder
 import io.gatling.core.config.GatlingConfiguration
 import io.gatling.core.protocol.{Protocol, ProtocolComponents, ProtocolKey}
-import io.gatling.core.session.{Session, SessionPrivateAttributes}
+import io.gatling.core.session.{Expression, Session, SessionPrivateAttributes}
 import io.gatling.core.structure.ScenarioContext
 import io.gatling.netty.util.Transports
 import io.grpc.netty.NettyChannelBuilder
 import io.grpc.stub.ClientCalls
-import io.grpc.{CallOptions, ClientCall, ManagedChannel, ManagedChannelBuilder, MethodDescriptor}
+import io.grpc._
 
+import java.util.UUID
 import scala.util.control.NonFatal
 
 object GrpcProtocol extends StrictLogging {
@@ -41,7 +41,8 @@ object GrpcProtocol extends StrictLogging {
     shareChannel: Boolean,
     channelAttributeName: String,
     private[gatling] val lazyParsing: Boolean,
-    override val onStart: Session => Session
+    override val onStart: Session => Session,
+    val reversedHeaders: List[HeaderPair[_]]
   ) extends ProtocolComponents {
 
     def this(
@@ -49,7 +50,8 @@ object GrpcProtocol extends StrictLogging {
       shareChannel: Boolean,
       channelAttributeName: String,
       warmUp: Option[WarmUp],
-      lazyParsing: Boolean
+      lazyParsing: Boolean,
+      reversedHeaders: List[HeaderPair[_]]
     ) = {
       this(
         sharedChannel = if (shareChannel) channelBuilder.build() else null,
@@ -60,7 +62,8 @@ object GrpcProtocol extends StrictLogging {
           Session.Identity
         } else { session =>
           session.set(channelAttributeName, channelBuilder.build())
-        }
+        },
+        reversedHeaders = reversedHeaders
       )
       warmUp.filter(_ => !warmedUp).foreach { case (method, req) =>
         logger.info(s"Making warm up call with method ${method.getFullMethodName}")
@@ -126,13 +129,16 @@ object GrpcProtocol extends StrictLogging {
 
 sealed trait GrpcProtocol extends Protocol {
   private[gatling] val overridingKey: GrpcProtocol.Key
+
+  def header[T](key: Metadata.Key[T], optional: Boolean = false)(value: Expression[T]): GrpcProtocol
 }
 
 case class StaticGrpcProtocol(
   private val channelBuilder: ManagedChannelBuilder[_],
   private val _shareChannel: Boolean = false,
   private val warmUp: Option[GrpcProtocol.WarmUp] = Some(GrpcProtocol.defaultWarmUp),
-  private val lazyParsing: Boolean = true
+  private val lazyParsing: Boolean = true,
+  private val reversedHeaders: List[HeaderPair[_]] = Nil
 ) extends GrpcProtocol {
   import GrpcProtocol._
 
@@ -156,7 +162,8 @@ case class StaticGrpcProtocol(
       shareChannel = _shareChannel,
       channelAttributeName = id.fold(DefaultChannelAttributeName)(DefaultChannelAttributeName + "." + _),
       warmUp = warmUp,
-      lazyParsing = lazyParsing
+      lazyParsing = lazyParsing,
+      reversedHeaders = reversedHeaders
     )
   }
 
@@ -173,11 +180,15 @@ case class StaticGrpcProtocol(
     }
   }
 
+  override def header[T](key: Metadata.Key[T], optional: Boolean = false)(value: Expression[T]): StaticGrpcProtocol =
+    copy(reversedHeaders = HeaderPair(key, value, optional) :: reversedHeaders)
+
 }
 
 case class DynamicGrpcProtocol(
   private val channelAttributeName: String,
-  private val lazyParsing: Boolean = true
+  private val lazyParsing: Boolean = true,
+  private val reversedHeaders: List[HeaderPair[_]] = Nil
 ) extends GrpcProtocol {
   import GrpcProtocol._
 
@@ -196,7 +207,8 @@ case class DynamicGrpcProtocol(
         shareChannel = false,
         channelAttributeName = channelAttributeName,
         lazyParsing = lazyParsing,
-        onStart = Session.Identity
+        onStart = Session.Identity,
+        reversedHeaders = reversedHeaders
       )
     }
   }
@@ -216,4 +228,7 @@ case class DynamicGrpcProtocol(
     override def build(ctx: ScenarioContext, next: Action): Action =
       new DisposeDynamicChannel(channelAttributeName, next)
   }
+
+  override def header[T](key: Metadata.Key[T], optional: Boolean = false)(value: Expression[T]): DynamicGrpcProtocol =
+    copy(reversedHeaders = HeaderPair(key, value, optional) :: reversedHeaders)
 }

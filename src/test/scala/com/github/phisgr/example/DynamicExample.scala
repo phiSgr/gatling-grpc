@@ -14,7 +14,9 @@ class DynamicExample extends Simulation {
 
   val static1 = grpc(managedChannelBuilder(name = "localhost", port = 8081).usePlaintext())
   val static2 = grpc(managedChannelBuilder(target = "localhost:8082").usePlaintext()).shareChannel
+
   val dynamic = dynamicChannel("target").forceParsing
+    .header(TokenHeaderKey)($("token"))
 
   val greetPayload: Expression[GreetRequest] = GreetRequest(name = "World")
     .updateExpr(_.username :~ $("username"))
@@ -42,7 +44,6 @@ class DynamicExample extends Simulation {
         grpc("Success")
           .rpc(ChatServiceGrpc.METHOD_GREET)
           .payload(greetPayload)
-          .header(TokenHeaderKey)($("token"))
           .extract(_.data.split(' ').lift(3).map(_.toInt))(_ is $("port"))
           .target(dynamic)
       )

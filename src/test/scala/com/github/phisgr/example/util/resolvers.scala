@@ -1,14 +1,15 @@
 package com.github.phisgr.example.util
 
 import java.net.{InetSocketAddress, URI}
-
-import io.grpc.{Attributes, EquivalentAddressGroup, NameResolver}
+import io.grpc.{Attributes, EquivalentAddressGroup, NameResolver, NameResolverProvider}
 
 import scala.jdk.CollectionConverters._
 
-object ClientSideLoadBalancingResolverFactory extends NameResolver.Factory {
-  override def getDefaultScheme: String = "whatever"
+object ClientSideLoadBalancingResolverProvider extends NameResolverProvider {
+  override def getDefaultScheme: String = "my-resolver"
   override def newNameResolver(targetUri: URI, args: NameResolver.Args): NameResolver = ClientSideLoadBalancingResolver
+  override def isAvailable: Boolean = true
+  override def priority(): Int = 0
 }
 
 object ClientSideLoadBalancingResolver extends NameResolver {

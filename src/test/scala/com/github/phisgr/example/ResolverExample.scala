@@ -2,10 +2,11 @@ package com.github.phisgr.example
 
 import ch.qos.logback.classic.Level
 import com.github.phisgr.example.chat.{ChatServiceGrpc, GreetRequest, RegisterRequest}
-import com.github.phisgr.example.util.{ClientSideLoadBalancingResolverFactory, TokenHeaderKey, ports, tuneLogging}
+import com.github.phisgr.example.util.{ClientSideLoadBalancingResolverProvider, TokenHeaderKey, ports, tuneLogging}
 import com.github.phisgr.gatling.grpc.Predef._
 import com.github.phisgr.gatling.grpc.action.GrpcCallAction
 import com.github.phisgr.gatling.pb._
+import io.grpc.NameResolverRegistry
 // stringToExpression is hidden because we have $ in GrpcDsl
 import io.gatling.core.Predef.{stringToExpression => _, _}
 import io.gatling.core.session.Expression
@@ -17,10 +18,11 @@ class ResolverExample extends Simulation {
   // this is done before the actions are built.
   tuneLogging(classOf[GrpcCallAction[_, _]].getName, Level.TRACE)
 
+  NameResolverRegistry.getDefaultRegistry.register(ClientSideLoadBalancingResolverProvider)
+
   val grpcConf = grpc(
-    managedChannelBuilder(target = "name.resolver.example")
+    managedChannelBuilder(target = "my-resolver://name.resolver.example")
       .usePlaintext()
-      .nameResolverFactory(ClientSideLoadBalancingResolverFactory)
       .defaultLoadBalancingPolicy("round_robin")
   )
 

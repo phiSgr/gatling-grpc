@@ -2,6 +2,7 @@ package com.github.phisgr.gatling.grpc
 
 import com.github.phisgr.gatling.grpc.protocol.{DynamicGrpcProtocol, StaticGrpcProtocol}
 import com.github.phisgr.gatling.grpc.request.Grpc
+import com.github.phisgr.gatling.grpc.stream.StreamCall
 import com.github.phisgr.gatling.grpc.util.wrongTypeMessage
 import io.gatling.commons.NotNothing
 import io.gatling.commons.validation.Success
@@ -38,4 +39,21 @@ trait GrpcDsl {
     case None => ElMessages.undefinedSessionAttribute(name)
     case Some(value) => wrongTypeMessage[T](value)
   }
+
+  /**
+   * Passed to [[com.github.phisgr.gatling.grpc.request.ListeningStream.reconciliate]]
+   * or [[com.github.phisgr.gatling.grpc.request.BidiStream.complete]].
+   * Suspends the execution of the virtual user until
+   * the stream ends.
+   */
+  def StreamEnd: StreamCall.WaitType = StreamCall.StreamEnd
+
+  /**
+   * Passed to [[com.github.phisgr.gatling.grpc.request.ListeningStream.reconciliate]]
+   * or [[com.github.phisgr.gatling.grpc.request.BidiStream.complete]].
+   * Suspends the execution of the virtual user until
+   * the next message arrives or
+   * the stream ends.
+   */
+  def NextMessage: StreamCall.WaitType = StreamCall.NextMessage
 }
