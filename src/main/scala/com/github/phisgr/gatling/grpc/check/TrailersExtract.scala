@@ -2,7 +2,7 @@ package com.github.phisgr.gatling.grpc.check
 
 import com.github.phisgr.gatling.grpc.check.GrpcResponse.GrpcStreamEnd
 import io.gatling.commons.validation.SuccessWrapper
-import io.gatling.core.check.{CheckMaterializer, CountCriterionExtractor, DefaultMultipleFindCheckBuilder, Extractor, FindAllCriterionExtractor, FindCriterionExtractor, Preparer}
+import io.gatling.core.check.{CheckBuilder, CheckMaterializer, CountCriterionExtractor, Extractor, FindAllCriterionExtractor, FindCriterionExtractor, Preparer}
 import io.gatling.core.session.{Expression, ExpressionSuccessWrapper}
 import io.grpc.Metadata
 
@@ -10,8 +10,8 @@ import scala.jdk.CollectionConverters._
 
 private[gatling] object TrailersExtract {
 
-  def trailer[T](key: Metadata.Key[T]): DefaultMultipleFindCheckBuilder[TrailersExtract, Metadata, T] =
-    new DefaultMultipleFindCheckBuilder[TrailersExtract, Metadata, T](
+  def trailer[T](key: Metadata.Key[T]): CheckBuilder.MultipleFind.Default[TrailersExtract, Metadata, T] =
+    new CheckBuilder.MultipleFind.Default[TrailersExtract, Metadata, T](
       displayActualValue = true
     ) {
       // The use of the iterable returned by `getAll` involves deserializing unused elements

@@ -1,10 +1,10 @@
 val commonSettings = Seq(
   organization := "com.github.phisgr",
-  scalaVersion := "2.13.6",
+  scalaVersion := "2.13.7",
   crossPaths := false,
 )
 
-val gatlingVersion = "3.6.1"
+val gatlingVersion = "3.7.2"
 val gatlingCore = "io.gatling" % "gatling-core" % gatlingVersion
 
 val publishSettings = {
@@ -27,9 +27,9 @@ lazy val root = (project in file("."))
     name := "gatling-grpc",
     version := "0.12.0",
     inConfig(Test)(sbtprotoc.ProtocPlugin.protobufConfigSettings),
-    PB.targets in Test := Seq(
-      scalapb.gen() -> (sourceManaged in Test).value,
-      PB.gens.java -> (sourceManaged in Test).value,
+    Test / PB.targets := Seq(
+      scalapb.gen() -> (Test / sourceManaged).value,
+      PB.gens.java -> (Test / sourceManaged).value,
     ),
     scalacOptions ++= Seq(
       "-language:existentials",
@@ -89,9 +89,9 @@ lazy val javaPbIjExt = (project in file("java-pb-intellij"))
   .settings(publishSettings: _*)
   .settings(
     name := "gatling-javapb-ijext",
-    intellijPluginName in ThisBuild := "gatling-javapb-ijext",
+    ThisBuild / intellijPluginName := "gatling-javapb-ijext",
     // https://www.jetbrains.com/idea/download/other.html
-    intellijBuild in ThisBuild := "203.5981.155",
+    ThisBuild / intellijBuild := "203.5981.155",
     version := gatlingJavaPbExtVersion,
     // https://plugins.jetbrains.com/plugin/1347-scala/versions/stable
     intellijPlugins += "org.intellij.scala:2020.3.18".toPlugin,
@@ -103,9 +103,9 @@ lazy val bench = (project in file("bench"))
   .dependsOn(root, javaPb)
   .enablePlugins(JmhPlugin)
   .settings(
-    PB.targets in Compile := Seq(
-      PB.gens.java -> (sourceManaged in Compile).value,
-      scalapb.gen() -> (sourceManaged in Compile).value
+    Compile / PB.targets := Seq(
+      PB.gens.java -> (Compile / sourceManaged).value,
+      scalapb.gen() -> (Compile / sourceManaged).value
     ),
   )
   .dependsOn(macroSub % "compile-internal")

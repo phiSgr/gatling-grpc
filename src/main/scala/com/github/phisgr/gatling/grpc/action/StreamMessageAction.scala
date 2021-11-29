@@ -24,7 +24,7 @@ abstract class StreamMessageAction(
   final def fetchCall[Call: ClassTag](streamName: String, session: Session): Validation[Call] =
     session(streamName)
       .validate[Call]
-      .mapError(m => s"$callFetchErrorMessage: $m")
+      .mapFailure(m => s"$callFetchErrorMessage: $m")
 
   override val statsEngine: StatsEngine = ctx.coreComponents.statsEngine
   override val clock: Clock = ctx.coreComponents.clock

@@ -15,7 +15,7 @@ package object javapb {
         case Success(value) =>
           setter(builder)(value)
           null
-        case f@Failure(_) =>
+        case f: Failure =>
           f
       }
     }
@@ -49,7 +49,7 @@ package object javapb {
             }
           } while (ret eq null)
           ret
-        case f@Failure(_) => f
+        case f: Failure => f
       }
   }
 

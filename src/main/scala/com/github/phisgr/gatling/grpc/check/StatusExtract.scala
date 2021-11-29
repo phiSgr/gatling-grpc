@@ -8,7 +8,7 @@ import io.grpc.Status
 
 private[gatling] object StatusExtract {
 
-  val StatusDescription: FindCheckBuilder[StatusExtract, Status, String] = new DefaultFindCheckBuilder(
+  val StatusDescription: CheckBuilder.Find[StatusExtract, Status, String] = new CheckBuilder.Find.Default(
     extractor = new FindExtractor[Status, String](
       name = "grpcStatusDescription",
       extractor = status => Option(status.getDescription).success
@@ -16,7 +16,7 @@ private[gatling] object StatusExtract {
     displayActualValue = true
   )
 
-  val StatusCode: FindCheckBuilder[StatusExtract, Status, Status.Code] = new DefaultFindCheckBuilder(
+  val StatusCode: CheckBuilder.Find[StatusExtract, Status, Status.Code] = new CheckBuilder.Find.Default(
     extractor = new FindExtractor[Status, Status.Code](
       name = "grpcStatusCode",
       extractor = status => Some(status.getCode).success
