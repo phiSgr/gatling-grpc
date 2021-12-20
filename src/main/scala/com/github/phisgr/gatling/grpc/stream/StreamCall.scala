@@ -160,7 +160,7 @@ abstract class StreamCall[Req, Res, State >: ServerStreamState](
       streamSession.scenario,
       streamSession.groups,
       requestName = requestName,
-      startTimestamp = completeTimeMillis,
+      startTimestamp = callStartTime,
       endTimestamp = completeTimeMillis,
       status = status,
       responseCode = Some(grpcStatus.getCode.toString),
