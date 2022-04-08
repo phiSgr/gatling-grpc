@@ -23,7 +23,7 @@ import scala.concurrent.duration._
 class StreamingExample extends Simulation {
   TestServer.startServer()
 
-  tuneLogging(classOf[GrpcProtocol].getName, Level.INFO)
+  tuneLogging(classOf[GrpcProtocol], Level.INFO)
 
   val sendMessageDuration = 55.seconds
   val simulationDuration = 60.seconds
@@ -63,7 +63,8 @@ class StreamingExample extends Simulation {
         .extract(_.username.some)(_ saveAs "prevUsername")
         .extract(_.time.some)(_ saveAs "prevTime")
         .sessionCombiner(SessionCombiner.pick("prevUsername", "prevTime"))
-        .endCheck(statusCode is Status.Code.OK)
+        .endCheckIf(_.userId < 20)(statusCode is Status.Code.OK)
+        .streamEndLog(logWhen = ErrorOnly)
     )
     .repeat(5) {
       pause(10.seconds)
@@ -101,7 +102,7 @@ class StreamingExample extends Simulation {
     .exec(_.set("username", UUID.randomUUID().toString))
     .exec(
       chatCall.connect(ChatServiceGrpc.METHOD_CHAT)
-        .endCheck(trailer(ErrorResponseKey).notExists)
+        .endCheckIf((res, _) => !res.status.isOk)(trailer(ErrorResponseKey).notExists)
         .endCheck(statusCode is Status.Code.OK)
     )
     .exec(
@@ -114,6 +115,7 @@ class StreamingExample extends Simulation {
         .callOptions(CallOptions.DEFAULT.withDeadlineAfter(10, TimeUnit.HOURS))
         .timestampExtractor(TimestampExtractor.Ignore)
         .sessionCombiner(SessionCombiner.NoOp)
+        .streamEndLog(logWhen = Never)
     )
     .exec(
       grpc("Wrong Message")
@@ -131,7 +133,7 @@ class StreamingExample extends Simulation {
           chatCall.send(
             ChatMessage.defaultInstance.updateExpr(
               _.username :~ $("username"),
-              _.data :~ "${username} says hi!",
+              _.data :~ "#{username} says hi!",
               _.time :~ timeExpression
             )
           )
@@ -172,6 +174,7 @@ class StreamingExample extends Simulation {
         }
         .extract(_.data.some)(_ validate endsWithHi)
         .endCheck(statusCode is Status.Code.CANCELLED)
+        .endCheck(trailer(ErrorResponseKey).notExists)
     )
     .pause(2.seconds)
     .doIf($("earlyStop")) {

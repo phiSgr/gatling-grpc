@@ -152,7 +152,7 @@ class LensExprSpec extends AnyFlatSpec with Matchers with StrictLogging {
 
     import io.gatling.core.Predef.stringToExpression
     assertClassCastException(
-      Foo(bar = List(Bar(1))).updateExpr(_.bar :++~ "${generics}")
+      Foo(bar = List(Bar(1))).updateExpr(_.bar :++~ "#{generics}")
     )
   }
 

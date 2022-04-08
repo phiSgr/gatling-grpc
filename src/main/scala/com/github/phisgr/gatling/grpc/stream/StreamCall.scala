@@ -9,7 +9,7 @@ import com.typesafe.scalalogging.StrictLogging
 import io.gatling.commons.stats.{KO, OK}
 import io.gatling.commons.util.StringHelper.Eol
 import io.gatling.commons.util.Throwables.PimpedException
-import io.gatling.commons.validation.{Failure, Success, Validation}
+import io.gatling.commons.validation.{Failure, Validation}
 import io.gatling.core.action.Action
 import io.gatling.core.check.Check
 import io.gatling.core.session.Session
@@ -29,13 +29,14 @@ abstract class StreamCall[Req, Res, State >: ServerStreamState](
   combine: SessionCombiner,
   checks: List[StreamCheck[Res]],
   endChecks: List[StreamCheck[GrpcStreamEnd]],
-  statsEngine: StatsEngine
+  statsEngine: StatsEngine,
+  logWhen: StreamEndLog
 ) extends StrictLogging with Cancellable {
 
   protected var state: State = initState
   protected var callStartTime: Long = _
 
-  logger.info(s"Opening stream '$streamName': Scenario '${streamSession.scenario}', UserId #${streamSession.userId}")
+  logger.debug(s"Opening stream '$streamName': Scenario '${streamSession.scenario}', UserId #${streamSession.userId}")
 
   private[gatling] def onRes(res: Any, receiveTime: Long): Unit = {
     // res is Unit if
@@ -107,7 +108,7 @@ abstract class StreamCall[Req, Res, State >: ServerStreamState](
     }
 
     if (status == KO) {
-      logger.info(s"Stream response for '$streamName' failed for user ${streamSession.userId}: ${errorMessage.getOrElse("")}")
+      logger.debug(s"Stream response for '$streamName' failed for user ${streamSession.userId}: ${errorMessage.getOrElse("")}")
       if (!logger.underlying.isTraceEnabled) {
         logger.debug(dump)
       }
@@ -156,19 +157,21 @@ abstract class StreamCall[Req, Res, State >: ServerStreamState](
         .toString
     }
 
-    statsEngine.logResponse(
-      streamSession.scenario,
-      streamSession.groups,
-      requestName = requestName,
-      startTimestamp = completeTimeMillis,
-      endTimestamp = completeTimeMillis,
-      status = status,
-      responseCode = Some(grpcStatus.getCode.toString),
-      message = errorMessage
-    )
+    if (logWhen.eq(StreamCall.AlwaysLog) || (status == KO && logWhen.eq(ErrorOnly))) {
+      statsEngine.logResponse(
+        streamSession.scenario,
+        streamSession.groups,
+        requestName = requestName,
+        startTimestamp = callStartTime,
+        endTimestamp = completeTimeMillis,
+        status = status,
+        responseCode = Some(grpcStatus.getCode.toString),
+        message = errorMessage
+      )
+    }
 
     if (status == KO) {
-      logger.info(s"Stream '$streamName' failed for user ${streamSession.userId}: ${errorMessage.getOrElse("")}")
+      logger.debug(s"Stream '$streamName' failed for user ${streamSession.userId}: ${errorMessage.getOrElse("")}")
       if (!logger.underlying.isTraceEnabled) {
         logger.debug(dump)
       }
@@ -224,7 +227,7 @@ private[gatling] object StreamCall {
     if (session.contains(streamName)) {
       Failure(s"Unable to create a new $direction stream with name $streamName: already exists")
     } else {
-      Success(())
+      Validation.unit
     }
   }
 
@@ -232,4 +235,9 @@ private[gatling] object StreamCall {
   case object NoWait extends WaitType
   case object NextMessage extends WaitType
   case object StreamEnd extends WaitType
+
+  sealed trait StreamEndLog
+  case object Never extends StreamEndLog
+  case object ErrorOnly extends StreamEndLog
+  case object AlwaysLog extends StreamEndLog
 }

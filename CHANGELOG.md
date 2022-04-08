@@ -1,3 +1,18 @@
+#### 0.13.0
+
+Gatling 3.7.6.
+- `checkIf` (and `endCheckIf` for streams) implemented.
+
+Reduce verbose logs to DEBUG
+following [Gatling 3.6.0](https://github.com/gatling/gatling/commit/4daad7)
+
+Bugfix: `trailer.find(n)` was always returning the first element.
+
+Server/bidi stream end logging:
+- `streamEndLog(logWhen)` added.
+- the start/end in the report is now the duration of the call,
+instead of the empty interval at the end of the call.
+
 #### 0.12.0
 
 Gatling 3.6.1. ScalaPB 0.11.6.

@@ -2,7 +2,8 @@ package com.github.phisgr.gatling.grpc.check
 
 import com.github.phisgr.gatling.grpc.check.GrpcResponse.GrpcStreamEnd
 import io.gatling.commons.validation.SuccessWrapper
-import io.gatling.core.check.{CheckMaterializer, CountCriterionExtractor, DefaultMultipleFindCheckBuilder, Extractor, FindAllCriterionExtractor, FindCriterionExtractor, Preparer}
+import io.gatling.core.check.{CheckMaterializer, CountCriterionExtractor, Extractor, FindAllCriterionExtractor, FindCriterionExtractor, Preparer}
+import io.gatling.core.check.CheckBuilder.MultipleFind
 import io.gatling.core.session.{Expression, ExpressionSuccessWrapper}
 import io.grpc.Metadata
 
@@ -10,8 +11,8 @@ import scala.jdk.CollectionConverters._
 
 private[gatling] object TrailersExtract {
 
-  def trailer[T](key: Metadata.Key[T]): DefaultMultipleFindCheckBuilder[TrailersExtract, Metadata, T] =
-    new DefaultMultipleFindCheckBuilder[TrailersExtract, Metadata, T](
+  def trailer[T](key: Metadata.Key[T]): MultipleFind.Default[TrailersExtract, Metadata, T] =
+    new MultipleFind.Default[TrailersExtract, Metadata, T](
       displayActualValue = true
     ) {
       // The use of the iterable returned by `getAll` involves deserializing unused elements
@@ -23,8 +24,7 @@ private[gatling] object TrailersExtract {
           occurrence = occurrence,
           extractor = { metadata =>
             Option(metadata.getAll(key)).flatMap { iterable =>
-              val iterator = iterable.iterator().asScala
-              iterator.drop(occurrence)
+              val iterator = iterable.iterator().asScala.drop(occurrence)
               if (iterator.hasNext) Some(iterator.next()) else None
             }.success
           }

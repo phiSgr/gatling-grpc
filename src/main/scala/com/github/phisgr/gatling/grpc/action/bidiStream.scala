@@ -5,7 +5,7 @@ import com.github.phisgr.gatling.generic.SessionCombiner
 import com.github.phisgr.gatling.grpc.check.GrpcResponse.GrpcStreamEnd
 import com.github.phisgr.gatling.grpc.check.StreamCheck
 import com.github.phisgr.gatling.grpc.request.CallAttributes
-import com.github.phisgr.gatling.grpc.stream.StreamCall.{WaitType, ensureNoStream}
+import com.github.phisgr.gatling.grpc.stream.StreamCall.{AlwaysLog, StreamEndLog, WaitType, ensureNoStream}
 import com.github.phisgr.gatling.grpc.stream.{BidiStreamCall, ClientStreamer, TimestampExtractor}
 import io.gatling.commons.util.Clock
 import io.gatling.commons.validation.Validation
@@ -27,8 +27,8 @@ case class BidiStreamStartActionBuilder[Req: ClassTag, Res](
   private[gatling] override val callAttributes: CallAttributes = CallAttributes(),
   private[gatling] override val checks: List[StreamCheck[Res]] = Nil,
   private[gatling] override val endChecks: List[StreamCheck[GrpcStreamEnd]] = Nil,
-) extends ActionBuilder
-  with StreamStartBuilder[BidiStreamStartActionBuilder[Req, Res], StreamCheck, Req, Res] {
+  private[gatling] val logWhen: StreamEndLog = AlwaysLog
+) extends StreamStartBuilder[BidiStreamStartActionBuilder[Req, Res], Req, Res] {
 
   override def build(ctx: ScenarioContext, next: Action): Action =
     new BidiStreamStartAction(this, ctx, next)
@@ -43,9 +43,11 @@ case class BidiStreamStartActionBuilder[Req: ClassTag, Res](
 
   override def check(checks: StreamCheck[Res]*): BidiStreamStartActionBuilder[Req, Res] =
     copy(checks = this.checks ::: checks.toList)
-  def endCheck(endChecks: StreamCheck[GrpcStreamEnd]*): BidiStreamStartActionBuilder[Req, Res] =
+  override def endCheck(endChecks: StreamCheck[GrpcStreamEnd]*): BidiStreamStartActionBuilder[Req, Res] =
     copy(endChecks = this.endChecks ::: endChecks.toList)
 
+  override def streamEndLog(logWhen: StreamEndLog): BidiStreamStartActionBuilder[Req, Res] =
+    copy(logWhen = logWhen)
 }
 
 class BidiStreamStartAction[Req: ClassTag, Res](
@@ -58,16 +60,17 @@ class BidiStreamStartAction[Req: ClassTag, Res](
   private[this] val reqClass = implicitly[ClassTag[Req]].runtimeClass.asInstanceOf[Class[Req]]
 
   override def requestName: Expression[String] = builder.requestName
-  override def sendRequest(requestName: String, session: Session): Validation[Unit] = forToMatch {
+  override def sendRequest(session: Session): Validation[Unit] = forToMatch {
     val streamName = builder.streamName
 
     for {
+      name <- requestName(session)
       _ <- ensureNoStream(session, streamName, direction = "bidi")
       headers <- resolveHeaders(session)
       callOptions <- callOptions(session)
     } yield {
       next ! session.set(streamName, new BidiStreamCall(
-        requestName = requestName,
+        requestName = name,
         streamName = streamName,
         newCall(session, callOptions),
         headers,
@@ -78,7 +81,8 @@ class BidiStreamStartAction[Req: ClassTag, Res](
         builder.checks,
         endChecks,
         reqClass,
-        ignoreMessage = ignoreMessage
+        ignoreMessage = ignoreMessage,
+        builder.logWhen
       ))
     }
   }
@@ -91,7 +95,7 @@ class BidiStreamStartAction[Req: ClassTag, Res](
 class StreamCompleteBuilder(requestName: Expression[String], streamName: String, waitType: WaitType) extends ActionBuilder {
   override def build(ctx: ScenarioContext, next: Action): Action =
     new StreamMessageAction(requestName, ctx, next, baseName = "StreamComplete", direction = "bidi") {
-      override def sendRequest(requestName: String, session: Session): Validation[Unit] = forToMatch {
+      override def sendRequest(session: Session): Validation[Unit] = forToMatch {
         for {
           call <- fetchCall[BidiStreamCall[_, _]](streamName, session)
           _ <- call.onClientCompleted(session, next, waitType)
@@ -108,7 +112,7 @@ class StreamSendBuilder[Req](
 ) extends ActionBuilder {
   override def build(ctx: ScenarioContext, next: Action): Action =
     new StreamMessageAction(requestName, ctx, next, baseName = "StreamSend", direction = direction) {
-      override def sendRequest(requestName: String, session: Session): Validation[Unit] = forToMatch {
+      override def sendRequest(session: Session): Validation[Unit] = forToMatch {
         for {
           call <- fetchCall[ClientStreamer[Req]](streamName, session)
           payload <- req(session)

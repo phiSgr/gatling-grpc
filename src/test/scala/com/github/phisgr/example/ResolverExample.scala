@@ -14,9 +14,7 @@ import io.gatling.core.session.Expression
 class ResolverExample extends Simulation {
   ports.foreach(TestServer.startServer)
 
-  // Although the actions do not support runtime change of logging level
-  // this is done before the actions are built.
-  tuneLogging(classOf[GrpcCallAction[_, _]].getName, Level.TRACE)
+  tuneLogging(classOf[GrpcCallAction[_, _]], Level.TRACE)
 
   NameResolverRegistry.getDefaultRegistry.register(ClientSideLoadBalancingResolverProvider)
 

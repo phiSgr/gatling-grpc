@@ -22,7 +22,7 @@ import scala.util.Try
 import scala.util.control.NonFatal
 
 object TestServer extends StrictLogging {
-  tuneLogging(this.getClass.getName, Level.INFO)
+  tuneLogging(this.getClass, Level.INFO)
 
   val accounts: collection.concurrent.Map[String, String] = new ConcurrentHashMap[String, String]().asScala
   val listeners = Sets.newConcurrentHashSet[ServerCallStreamObserver[ChatMessage]]()
@@ -77,7 +77,7 @@ object TestServer extends StrictLogging {
         } else {
           val trailers = new Metadata()
           trailers.put(ErrorResponseKey, CustomError("The username is already taken!"))
-          throw Status.ALREADY_EXISTS.asException(trailers)
+          throw Status.ALREADY_EXISTS.withDescription("Already taken.").asException(trailers)
         }
       })
 
@@ -155,7 +155,7 @@ object TestServer extends StrictLogging {
       ): ServerCall.Listener[ReqT] = {
         if (
           call.getMethodDescriptor.getFullMethodName == ChatServiceGrpc.METHOD_GREET.getFullMethodName &&
-            ThreadLocalRandom.current().nextInt(100000) == 0
+            ThreadLocalRandom.current().nextInt(100_000) == 0
         ) {
           val trailers = new Metadata()
           trailers.put(ErrorResponseKey, CustomError("1 in 100,000 chance!"))

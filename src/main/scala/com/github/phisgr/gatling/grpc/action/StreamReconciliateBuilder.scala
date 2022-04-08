@@ -17,7 +17,7 @@ class StreamReconciliateBuilder(
 ) extends ActionBuilder {
   override def build(ctx: ScenarioContext, next: Action): Action =
     new StreamMessageAction(requestName, ctx, next, baseName = "StreamReconciliate", direction) {
-      override def sendRequest(requestName: String, session: Session): Validation[Unit] = forToMatch {
+      override def sendRequest(session: Session): Validation[Unit] = forToMatch {
         for {
           call <- fetchCall[StreamCall[_, _, _]](streamName, session)
         } yield {

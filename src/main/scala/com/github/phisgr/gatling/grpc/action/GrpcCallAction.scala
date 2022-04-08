@@ -4,6 +4,7 @@ import com.github.phisgr.gatling.forToMatch
 import com.github.phisgr.gatling.generic.util.EventLoopHelper
 import com.github.phisgr.gatling.grpc.ClientCalls
 import com.github.phisgr.gatling.grpc.check.{GrpcCheck, GrpcResponse, StatusExtract}
+import com.github.phisgr.gatling.grpc.protocol.ByteArrayMarshaller
 import com.github.phisgr.gatling.grpc.protocol.Statuses.{MultipleResponses, NoResponses}
 import com.github.phisgr.gatling.grpc.request.Call
 import com.github.phisgr.gatling.grpc.util.{GrpcStringBuilder, delayedParsing}
@@ -38,19 +39,19 @@ class GrpcCallAction[Req, Res](
   override val name: String = genName("grpcCall")
   override def requestName: Expression[String] = builder.requestName
 
-  private[this] val resolvedChecks = (if (builder.checks.exists(_.checksStatus)) builder.checks else {
+  private[this] val resolvedChecks = (if (builder.checks.exists(_.scope.checksStatus)) builder.checks else {
     StatusExtract.DefaultCheck :: builder.checks
   }).asInstanceOf[List[GrpcCheck[Any]]]
 
   override protected def needParsed: Boolean =
-    builder.checks.exists(_.scope == GrpcCheck.Value) ||
+    builder.checks.exists(_.scope.checksValue) ||
       // If trace is enabled, we always log the response. No need to delay parsing
       logger.underlying.isTraceEnabled
   override protected def mayNeedDelayedParsing: Boolean = logger.underlying.isDebugEnabled
 
   // For delayed parsing
   private[this] val responseMarshaller: Marshaller[Res] =
-    if (lazyParseMethod eq builder.method) null else builder.method.getResponseMarshaller
+    if (lazyParseMethod.getResponseMarshaller eq ByteArrayMarshaller) builder.method.getResponseMarshaller else null
 
   private def run(
     call: ClientCall[Req, Any],
@@ -66,8 +67,9 @@ class GrpcCallAction[Req, Res](
     )
   }
 
-  override def sendRequest(requestName: String, session: Session): Validation[Unit] = forToMatch {
+  override def sendRequest(session: Session): Validation[Unit] = forToMatch {
     for {
+      name <- requestName(session)
       headers <- resolveHeaders(session)
       resolvedPayload <- builder.payload(session)
       callOptions <- callOptions(session)
@@ -75,10 +77,10 @@ class GrpcCallAction[Req, Res](
       val call = newCall(session, callOptions)
       if (throttler ne null) {
         throttler.throttle(session.scenario, () =>
-          run(call, resolvedPayload, session, resolvedRequestName = requestName, headers)
+          run(call, resolvedPayload, session, resolvedRequestName = name, headers)
         )
       } else {
-        run(call, resolvedPayload, session, resolvedRequestName = requestName, headers)
+        run(call, resolvedPayload, session, resolvedRequestName = name, headers)
       }
     }
   }
@@ -182,7 +184,7 @@ class GrpcCallAction[Req, Res](
       }
 
       if (status == KO) {
-        logger.info(s"Request '$fullRequestName' failed for user ${session.userId}: ${errorMessage.getOrElse("")}")
+        logger.debug(s"Request '$fullRequestName' failed for user ${session.userId}: ${errorMessage.getOrElse("")}")
         if (!logger.underlying.isTraceEnabled) {
           logger.debug(dump)
         }

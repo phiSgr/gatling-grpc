@@ -13,11 +13,11 @@ class StreamCancelBuilder(requestName: Expression[String], streamName: String, d
     new StreamMessageAction(requestName, ctx, next, baseName = "StreamClose", direction) {
       // close over the string rather than the outer class
       private[this] val streamName = StreamCancelBuilder.this.streamName
-      override def sendRequest(requestName: String, session: Session): Validation[Unit] = forToMatch {
+      override def sendRequest(session: Session): Validation[Unit] = forToMatch {
         for {
           call <- fetchCall[Cancellable](streamName, session)
         } yield {
-          logger.info(s"Cancelling $direction stream '$streamName': Scenario '${session.scenario}', UserId #${session.userId}")
+          logger.debug(s"Cancelling $direction stream '$streamName': Scenario '${session.scenario}', UserId #${session.userId}")
           call.cancel(session, next)
         }
       }

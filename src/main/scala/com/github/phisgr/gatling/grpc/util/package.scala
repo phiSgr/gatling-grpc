@@ -106,14 +106,12 @@ package object util {
   )
 
   private[gatling] def delayedParsing[Res](body: Any, responseMarshaller: Marshaller[Res]): Any = {
-    if (null == body) {
-      null
-    } else if (responseMarshaller ne null) {
+    if (responseMarshaller.eq(null) || null == body) {
+      body
+    } else {
       // does not support runtime change of logger level
       val rawBytes = body.asInstanceOf[Array[Byte]]
       responseMarshaller.parse(new ByteArrayInputStream(rawBytes))
-    } else {
-      body
     }
   }
 

@@ -9,7 +9,7 @@ import com.typesafe.scalalogging.StrictLogging
 import io.gatling.commons.stats.{KO, OK}
 import io.gatling.commons.util.Clock
 import io.gatling.commons.util.StringHelper.Eol
-import io.gatling.commons.validation.{Success, Validation}
+import io.gatling.commons.validation.Validation
 import io.gatling.core.action.Action
 import io.gatling.core.check.Check
 import io.gatling.core.session.Session
@@ -87,12 +87,12 @@ class ClientStreamCall[Req, Res](
       wrongTypeMessage[Req](req)
     } else {
       if (callCompleted) {
-        logger.info(s"Client issued message but stream $streamName already completed")
+        logger.debug(s"Client issued message but stream $streamName already completed")
       } else {
-        logger.info(s"Sending message ${toProtoString(req)} with stream '$streamName': Scenario '$scenario', UserId #$userId")
+        logger.debug(s"Sending message ${toProtoString(req)} with stream '$streamName': Scenario '$scenario', UserId #$userId")
         call.sendMessage(req)
       }
-      Success(())
+      Validation.unit
     }
   }
 
@@ -160,7 +160,7 @@ class ClientStreamCall[Req, Res](
     }
 
     if (status == KO) {
-      logger.info(s"Request '$requestName' failed for user ${session.userId}: ${errorMessage.getOrElse("")}")
+      logger.debug(s"Request '$requestName' failed for user ${session.userId}: ${errorMessage.getOrElse("")}")
       if (!logger.underlying.isTraceEnabled) {
         logger.debug(dump)
       }

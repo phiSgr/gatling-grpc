@@ -137,7 +137,7 @@ class JavaPbExprSpec extends AnyFlatSpec with Matchers with StrictLogging {
     import io.gatling.core.Predef.stringToExpression
     assertClassCastException(
       newFoo(bar = List(newBar(1)))
-        .update(_.addAllBar)("${generics}")
+        .update(_.addAllBar)("#{generics}")
     )
   }
 }

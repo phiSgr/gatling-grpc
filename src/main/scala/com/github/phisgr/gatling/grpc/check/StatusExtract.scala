@@ -3,12 +3,13 @@ package com.github.phisgr.gatling.grpc.check
 import com.github.phisgr.gatling.grpc.check.GrpcResponse.GrpcStreamEnd
 import io.gatling.commons.validation.SuccessWrapper
 import io.gatling.core.Predef.value2Expression
-import io.gatling.core.check._
+import io.gatling.core.check.CheckBuilder.Find
+import io.gatling.core.check.{CheckMaterializer, FindExtractor, Preparer}
 import io.grpc.Status
 
 private[gatling] object StatusExtract {
 
-  val StatusDescription: FindCheckBuilder[StatusExtract, Status, String] = new DefaultFindCheckBuilder(
+  val StatusDescription: Find[StatusExtract, Status, String] = new Find.Default(
     extractor = new FindExtractor[Status, String](
       name = "grpcStatusDescription",
       extractor = status => Option(status.getDescription).success
@@ -16,7 +17,7 @@ private[gatling] object StatusExtract {
     displayActualValue = true
   )
 
-  val StatusCode: FindCheckBuilder[StatusExtract, Status, Status.Code] = new DefaultFindCheckBuilder(
+  val StatusCode: Find[StatusExtract, Status, Status.Code] = new Find.Default(
     extractor = new FindExtractor[Status, Status.Code](
       name = "grpcStatusCode",
       extractor = status => Some(status.getCode).success

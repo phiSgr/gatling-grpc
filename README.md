@@ -5,7 +5,7 @@ A [Gatling](http://gatling.io/) load test plugin for [gRPC](https://grpc.io/).
 ## Usage
 
 Because of gRPC's need of code generation,
-I assume you are running the tests using the
+I assume you are running the tests using a build tool, e.g. the
 [SBT plugin](https://gatling.io/docs/current/extensions/sbt_plugin/).
 For a quickstart guide, see this
 [Medium article](https://medium.com/@georgeleung_7777/a-demo-of-gatling-grpc-bc92158ca808).
@@ -20,7 +20,7 @@ along with the two required by Gatling.
 libraryDependencies ++= Seq(
   "io.gatling.highcharts" % "gatling-charts-highcharts" % gatlingVersion % "test",
   "io.gatling" % "gatling-test-framework" % gatlingVersion % "test",
-  "com.github.phisgr" % "gatling-grpc" % "0.12.0" % "test"
+  "com.github.phisgr" % "gatling-grpc" % "0.13.0" % "test"
 )
 enablePlugins(GatlingPlugin)
 ```
@@ -84,5 +84,5 @@ or set the `level` to `TRACE` to log all gRPC requests.
 
 ## Development
 
-`sbt clean coverage test gatling:test coverageReport` for a coverage report.  
+`sbt clean coverage test Gatling/test coverageReport` for a coverage report.  
 `sbt clean bench/clean 'bench/jmh:run -i 3 -wi 3 -f10 -t1 -prof gc'` for JMH tests.

@@ -2,7 +2,8 @@ package com.github.phisgr.gatling.grpc.action
 
 import com.github.phisgr.gatling.forToMatch
 import com.github.phisgr.gatling.grpc.check.{GrpcCheck, StatusExtract}
-import com.github.phisgr.gatling.grpc.request.{Call, CallAttributes, CallDefinition}
+import com.github.phisgr.gatling.grpc.protocol.ByteArrayMarshaller
+import com.github.phisgr.gatling.grpc.request.{Call, CallAttributes}
 import com.github.phisgr.gatling.grpc.stream.ClientStreamCall
 import com.github.phisgr.gatling.grpc.stream.StreamCall.ensureNoStream
 import io.gatling.commons.util.Clock
@@ -24,8 +25,8 @@ case class ClientStreamStartActionBuilder[Req: ClassTag, Res](
   private[gatling] override val method: MethodDescriptor[Req, Res],
   private[gatling] override val callAttributes: CallAttributes = CallAttributes(),
   private[gatling] override val checks: List[GrpcCheck[Res]] = Nil,
-) extends ActionBuilder
-  with CallDefinition[ClientStreamStartActionBuilder[Req, Res], GrpcCheck, Req, Res] {
+  isSilent: Boolean = false
+) extends UnaryResponseBuilder[ClientStreamStartActionBuilder[Req, Res], Req, Res] {
 
   override def build(ctx: ScenarioContext, next: Action): Action =
     new ClientStreamStartAction(this, ctx, next)
@@ -43,14 +44,14 @@ class ClientStreamStartAction[Req: ClassTag, Res](
   override val next: Action
 ) extends Call[Req, Res](ctx, builder.callAttributes, builder.method) {
   override protected def needParsed: Boolean =
-    builder.checks.exists(_.scope == GrpcCheck.Value) ||
+    builder.checks.exists(_.scope.checksValue) ||
       // If trace is enabled, we always log the response. No need to delay parsing
-      LoggerFactory.getLogger(classOf[ClientStreamCall[_, _]]).isTraceEnabled
+      LoggerFactory.getLogger(classOf[ClientStreamCall[_, _]].getName).isTraceEnabled
   override protected def mayNeedDelayedParsing: Boolean =
-    LoggerFactory.getLogger(classOf[ClientStreamCall[_, _]]).isDebugEnabled
+    LoggerFactory.getLogger(classOf[ClientStreamCall[_, _]].getName).isDebugEnabled
 
 
-  private[this] val resolvedChecks = (if (builder.checks.exists(_.checksStatus)) builder.checks else {
+  private[this] val resolvedChecks = (if (builder.checks.exists(_.scope.checksStatus)) builder.checks else {
     StatusExtract.DefaultCheck :: builder.checks
   }).asInstanceOf[List[GrpcCheck[Any]]]
 
@@ -58,30 +59,31 @@ class ClientStreamStartAction[Req: ClassTag, Res](
 
   // For delayed parsing
   private[this] val responseMarshaller: Marshaller[Res] =
-    if (lazyParseMethod eq builder.method) null else builder.method.getResponseMarshaller
+    if (lazyParseMethod.getResponseMarshaller eq ByteArrayMarshaller) null else builder.method.getResponseMarshaller
 
   override def requestName: Expression[String] = builder.requestName
-  override def sendRequest(requestName: String, session: Session): Validation[Unit] = forToMatch {
+  override def sendRequest(session: Session): Validation[Unit] = forToMatch {
     val streamName = builder.streamName
 
     for {
+      name <- requestName(session)
       _ <- ensureNoStream(session, streamName, direction = "client")
       headers <- resolveHeaders(session)
       callOptions <- callOptions(session)
     } yield {
       next ! session.set(streamName, new ClientStreamCall(
-        requestName,
-        streamName,
-        newCall(session, callOptions),
-        responseMarshaller,
-        headers,
-        ctx,
-        resolvedChecks,
-        reqClass,
-        session.eventLoop,
-        session.scenario,
-        session.userId,
-        clock
+        requestName = name,
+        streamName = streamName,
+        call = newCall(session, callOptions),
+        responseMarshaller = responseMarshaller,
+        headers = headers,
+        ctx = ctx,
+        checks = resolvedChecks,
+        reqClass = reqClass,
+        eventLoop = session.eventLoop,
+        scenario = session.scenario,
+        userId = session.userId,
+        clock = clock
       ))
     }
   }
@@ -94,7 +96,7 @@ class ClientStreamStartAction[Req: ClassTag, Res](
 class ClientStreamCompletionBuilder(requestName: Expression[String], streamName: String) extends ActionBuilder {
   override def build(ctx: ScenarioContext, next: Action): Action =
     new StreamMessageAction(requestName, ctx, next, baseName = "StreamEnd", direction = "client") {
-      override def sendRequest(requestName: String, session: Session): Validation[Unit] = forToMatch {
+      override def sendRequest(session: Session): Validation[Unit] = forToMatch {
         for {
           call <- fetchCall[ClientStreamCall[_, _]](streamName, session)
         } yield {

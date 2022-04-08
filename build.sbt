@@ -1,10 +1,10 @@
 val commonSettings = Seq(
   organization := "com.github.phisgr",
-  scalaVersion := "2.13.6",
+  scalaVersion := "2.13.8",
   crossPaths := false,
 )
 
-val gatlingVersion = "3.6.1"
+val gatlingVersion = "3.7.6"
 val gatlingCore = "io.gatling" % "gatling-core" % gatlingVersion
 
 val publishSettings = {
@@ -25,11 +25,11 @@ lazy val root = (project in file("."))
   .settings(publishSettings: _*)
   .settings(
     name := "gatling-grpc",
-    version := "0.12.0",
+    version := "0.13.0",
     inConfig(Test)(sbtprotoc.ProtocPlugin.protobufConfigSettings),
-    PB.targets in Test := Seq(
-      scalapb.gen() -> (sourceManaged in Test).value,
-      PB.gens.java -> (sourceManaged in Test).value,
+    Test / PB.targets := Seq(
+      scalapb.gen() -> (Test / sourceManaged).value,
+      PB.gens.java -> (Test / sourceManaged).value,
     ),
     scalacOptions ++= Seq(
       "-language:existentials",
@@ -43,10 +43,10 @@ lazy val root = (project in file("."))
       "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf",
       "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion,
       gatlingCore,
-      "com.github.phisgr" % "gatling-ext" % "0.2.0",
+      "com.github.phisgr" % "gatling-ext" % "0.3.0",
       "io.gatling.highcharts" % "gatling-charts-highcharts" % gatlingVersion % "test",
       "io.gatling" % "gatling-test-framework" % gatlingVersion % "test",
-      "org.scalatest" %% "scalatest" % "3.2.2" % "test",
+      "org.scalatest" %% "scalatest" % "3.2.12" % "test",
     ),
   )
   .dependsOn(macroSub % "compile-internal")
@@ -64,9 +64,8 @@ lazy val macroSub = (project in file("macro"))
   )
 
 // Usually the two update together (for specifying IntelliJ compatibility)
-// but there is a slight API change this time
-val gatlingJavaPbVersion = "1.1.1"
-val gatlingJavaPbExtVersion = "1.1.0"
+val gatlingJavaPbVersion = "1.2.0"
+val gatlingJavaPbExtVersion = "1.2.0"
 lazy val javaPb = (project in file("java-pb"))
   .settings(commonSettings: _*)
   .settings(publishSettings: _*)
@@ -74,7 +73,7 @@ lazy val javaPb = (project in file("java-pb"))
     name := "gatling-javapb",
     version := gatlingJavaPbVersion,
     libraryDependencies ++= Seq(
-      "com.google.protobuf" % "protobuf-java" % "3.14.0",
+      "com.google.protobuf" % "protobuf-java" % "3.20.1",
       gatlingCore,
     ),
     scalacOptions ++= Seq(
@@ -89,12 +88,12 @@ lazy val javaPbIjExt = (project in file("java-pb-intellij"))
   .settings(publishSettings: _*)
   .settings(
     name := "gatling-javapb-ijext",
-    intellijPluginName in ThisBuild := "gatling-javapb-ijext",
+    ThisBuild / intellijPluginName := "gatling-javapb-ijext",
     // https://www.jetbrains.com/idea/download/other.html
-    intellijBuild in ThisBuild := "203.5981.155",
+    ThisBuild / intellijBuild := "221.5591.52",
     version := gatlingJavaPbExtVersion,
     // https://plugins.jetbrains.com/plugin/1347-scala/versions/stable
-    intellijPlugins += "org.intellij.scala:2020.3.18".toPlugin,
+    intellijPlugins += "org.intellij.scala:2022.1.14".toPlugin,
   )
   .enablePlugins(SbtIdeaPlugin)
 
@@ -103,9 +102,9 @@ lazy val bench = (project in file("bench"))
   .dependsOn(root, javaPb)
   .enablePlugins(JmhPlugin)
   .settings(
-    PB.targets in Compile := Seq(
-      PB.gens.java -> (sourceManaged in Compile).value,
-      scalapb.gen() -> (sourceManaged in Compile).value
+    Compile / PB.targets := Seq(
+      PB.gens.java -> (Compile / sourceManaged).value,
+      scalapb.gen() -> (Compile / sourceManaged).value
     ),
   )
   .dependsOn(macroSub % "compile-internal")

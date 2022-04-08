@@ -57,7 +57,9 @@ class GrpcExample extends Simulation {
       grpc("Empty server")
         .rpc(ChatServiceGrpc.METHOD_REGISTER)
         .payload(RegisterRequest.defaultInstance)
-        .check(statusCode is Status.Code.UNIMPLEMENTED)
+        // only one error
+        .checkIf(_.userId == 10)(statusCode is Status.Code.ABORTED)
+        .checkIf(_.userId != 10)(statusCode is Status.Code.UNIMPLEMENTED)
         .target(emptyGrpc)
     )
     .exec(
@@ -90,7 +92,7 @@ class GrpcExample extends Simulation {
           grpc("Expect PERMISSION_DENIED")
             .rpc(ChatServiceGrpc.METHOD_GREET)
             .payload(GreetRequest(username = "DoesNotExist"))
-            .check(statusCode is Status.Code.PERMISSION_DENIED)
+            .checkIf((res, _) => res.validation.toOption.isEmpty)(statusCode is Status.Code.PERMISSION_DENIED)
         )
         .exec(
           grpc("Use session")
@@ -107,11 +109,17 @@ class GrpcExample extends Simulation {
           grpc("Extract multiple")
             .rpc(ChatServiceGrpc.METHOD_GREET)
             .payload(greetPayload)
-            .extractMultiple(_.data.split(' ').toSeq.some)(
+            .extractMultipleIf(_.userId <= 10)(_.data.split(' ').toSeq.some)(
               _.count is 4,
               _.find(10).notExists,
               _.find(2) is "Hello",
               _.findAll is List("Server", "says:", "Hello", "World!")
+            )
+            .extractMultipleIf((message, _) =>
+              !message.status.isOk
+            )(_.username.toSeq.some
+            )( // this check should fail, but condition is not met, so no failure
+              _.find(1) is 'u'
             )
         )
     }
@@ -119,7 +127,18 @@ class GrpcExample extends Simulation {
       grpc("Extraction crash")
         .rpc(ChatServiceGrpc.METHOD_GREET)
         .payload(greetPayload)
-        .extract(_.data.split(' ')(10).some)(_.exists) // This will crash, see _.find(10) above
+        .extractIf(
+          _.userId == 50)( // only 1 error
+          _.data.split(' ')(10).some)( // This will crash, see _.find(10) above
+          _.exists
+        )
+        .extractIf { (res, session) =>
+          session.userId == 51 && // only 1 failure
+            res.validation.toOption.get.data.startsWith("Server") // always true
+        }(
+          _.data.split(' ')(10).some)( // This will crash, see _.find(10) above
+          _.exists
+        )
     )
 
   setUp(

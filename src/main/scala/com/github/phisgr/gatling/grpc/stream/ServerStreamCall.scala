@@ -4,7 +4,7 @@ import com.github.phisgr.gatling.generic.SessionCombiner
 import com.github.phisgr.gatling.grpc.ClientCalls
 import com.github.phisgr.gatling.grpc.check.GrpcResponse.GrpcStreamEnd
 import com.github.phisgr.gatling.grpc.check.StreamCheck
-import com.github.phisgr.gatling.grpc.stream.StreamCall.{Receiving, ServerStreamState}
+import com.github.phisgr.gatling.grpc.stream.StreamCall.{Receiving, ServerStreamState, StreamEndLog}
 import io.gatling.core.session.Session
 import io.gatling.core.structure.ScenarioContext
 import io.grpc.{ClientCall, Metadata, Status}
@@ -23,7 +23,8 @@ class ServerStreamCall[Req, Res](
   startingSession: Session,
   checks: List[StreamCheck[Res]],
   endChecks: List[StreamCheck[GrpcStreamEnd]],
-  ignoreMessage: Boolean
+  ignoreMessage: Boolean,
+  logWhen: StreamEndLog
 ) extends StreamCall[Req, Res, ServerStreamState](
   requestName = requestName,
   streamName = streamName,
@@ -34,7 +35,8 @@ class ServerStreamCall[Req, Res](
   combine,
   checks,
   endChecks,
-  ctx.coreComponents.statsEngine
+  ctx.coreComponents.statsEngine,
+  logWhen
 ) {
 
   {

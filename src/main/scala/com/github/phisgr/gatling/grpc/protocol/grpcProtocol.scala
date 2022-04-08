@@ -12,26 +12,26 @@ import io.gatling.core.protocol.{Protocol, ProtocolComponents, ProtocolKey}
 import io.gatling.core.session.{Expression, Session, SessionPrivateAttributes}
 import io.gatling.core.structure.ScenarioContext
 import io.gatling.netty.util.Transports
+import io.grpc._
 import io.grpc.netty.NettyChannelBuilder
 import io.grpc.stub.ClientCalls
-import io.grpc._
 
 import java.util.UUID
 import scala.util.control.NonFatal
 
+case class WarmUp[T](method: MethodDescriptor[T, _], payload: T)
+
 object GrpcProtocol extends StrictLogging {
   private[gatling] val DefaultChannelAttributeName: String = SessionPrivateAttributes.PrivateAttributePrefix + "grpc.channel"
 
-  type WarmUp = (MethodDescriptor[T, _], T) forSome {type T}
-
-  private[gatling] def defaultWarmUp: WarmUp = {
+  private[gatling] def defaultWarmUp: WarmUp[Unit] = {
     val method = MethodDescriptor.newBuilder()
       .setFullMethodName("grpc.health.v1.Health/Check")
       .setType(MethodDescriptor.MethodType.UNARY)
       .setRequestMarshaller(EmptyMarshaller)
       .setResponseMarshaller(EmptyMarshaller)
       .build()
-    (method, ())
+    WarmUp(method, ())
   }
 
   private[this] var warmedUp = false
@@ -49,7 +49,7 @@ object GrpcProtocol extends StrictLogging {
       channelBuilder: ManagedChannelBuilder[_],
       shareChannel: Boolean,
       channelAttributeName: String,
-      warmUp: Option[WarmUp],
+      warmUp: Option[WarmUp[_]],
       lazyParsing: Boolean,
       reversedHeaders: List[HeaderPair[_]]
     ) = {
@@ -65,8 +65,8 @@ object GrpcProtocol extends StrictLogging {
         },
         reversedHeaders = reversedHeaders
       )
-      warmUp.filter(_ => !warmedUp).foreach { case (method, req) =>
-        logger.info(s"Making warm up call with method ${method.getFullMethodName}")
+      warmUp.filter(_ => !warmedUp).foreach { case WarmUp(method, req) =>
+        logger.debug(s"Making warm up call with method ${method.getFullMethodName}")
         var tempChannel: ManagedChannel = null
         try {
           val warmUpChannel = if (shareChannel) sharedChannel else {
@@ -81,7 +81,7 @@ object GrpcProtocol extends StrictLogging {
             if (logger.underlying.isDebugEnabled)
               logger.debug(s"Couldn't execute warm up request", e)
             else
-              logger.info(s"Couldn't execute warm up request: ${e.rootMessage}")
+              logger.debug(s"Couldn't execute warm up request: ${e.rootMessage}")
         } finally {
           if (tempChannel ne null) tempChannel.shutdownNow()
         }
@@ -136,7 +136,7 @@ sealed trait GrpcProtocol extends Protocol {
 case class StaticGrpcProtocol(
   private val channelBuilder: ManagedChannelBuilder[_],
   private val _shareChannel: Boolean = false,
-  private val warmUp: Option[GrpcProtocol.WarmUp] = Some(GrpcProtocol.defaultWarmUp),
+  private val warmUp: Option[WarmUp[_]] = Some(GrpcProtocol.defaultWarmUp),
   private val lazyParsing: Boolean = true,
   private val reversedHeaders: List[HeaderPair[_]] = Nil
 ) extends GrpcProtocol {
@@ -148,12 +148,14 @@ case class StaticGrpcProtocol(
 
   /**
    * By default, if nothing inspects the response body, the body is ignored.
+   * You may fail to detect invalid responses in your load test because of that.
+   *
    * This option forces the parsing.
    */
   def forceParsing: StaticGrpcProtocol = copy(lazyParsing = false)
 
   def warmUpCall[T](method: MethodDescriptor[T, _], req: T): StaticGrpcProtocol =
-    copy(warmUp = Some((method, req)))
+    copy(warmUp = Some(WarmUp(method, req)))
 
   def createComponents(id: Option[String], coreComponents: CoreComponents): GrpcComponent = {
     setEventLoopGroup(channelBuilder, coreComponents)
@@ -175,7 +177,7 @@ case class StaticGrpcProtocol(
 
     override def newComponents(coreComponents: CoreComponents): GrpcProtocol => GrpcComponent = { _ =>
       val id = UUID.randomUUID().toString
-      logger.info(s"Creating a new non-default GrpcComponent with ID $id")
+      logger.debug(s"Creating a new non-default GrpcComponent with ID $id")
       createComponents(id = Some(id), coreComponents)
     }
   }
@@ -222,7 +224,7 @@ case class DynamicGrpcProtocol(
    *
    * On exit of the virtual user, we attempt to shutdown the channel anyway.
    *
-   * @return an ActionBuilder to be `exec`ed.
+   * @return the ActionBuilder to be `exec`ed.
    */
   lazy val disposeChannel: ActionBuilder = new ActionBuilder {
     override def build(ctx: ScenarioContext, next: Action): Action =

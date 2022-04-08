@@ -5,7 +5,7 @@ import com.github.phisgr.gatling.grpc.check.GrpcResponse.GrpcStreamEnd
 import com.github.phisgr.gatling.grpc.check.StreamCheck
 import com.github.phisgr.gatling.grpc.stream.StreamCall._
 import com.github.phisgr.gatling.grpc.util.{toProtoString, wrongTypeMessage}
-import io.gatling.commons.validation.{Failure, Success, Validation}
+import io.gatling.commons.validation.{Failure, Validation}
 import io.gatling.core.action.Action
 import io.gatling.core.session.Session
 import io.gatling.core.structure.ScenarioContext
@@ -26,7 +26,8 @@ class BidiStreamCall[Req, Res](
   checks: List[StreamCheck[Res]],
   endChecks: List[StreamCheck[GrpcStreamEnd]],
   reqClass: Class[Req],
-  ignoreMessage: Boolean
+  ignoreMessage: Boolean,
+  logWhen: StreamEndLog
 ) extends StreamCall[Req, Res, BidiStreamState](
   requestName = requestName,
   streamName = streamName,
@@ -37,7 +38,8 @@ class BidiStreamCall[Req, Res](
   combine,
   checks,
   endChecks,
-  ctx.coreComponents.statsEngine
+  ctx.coreComponents.statsEngine,
+  logWhen
 ) with ClientStreamer[Req] {
   private implicit def reqTag: ClassTag[Req] = ClassTag(reqClass)
 
@@ -61,7 +63,7 @@ class BidiStreamCall[Req, Res](
     } else {
       state match {
         case BothOpen =>
-          logger.info(
+          logger.debug(
             s"Sending message ${toProtoString(req)} with stream '$streamName': Scenario '${streamSession.scenario}', UserId #${streamSession.userId}"
           )
           call.sendMessage(req)
@@ -69,9 +71,9 @@ class BidiStreamCall[Req, Res](
           logger.error(s"Client issued message after client completion in stream $streamName")
           return alreadyHalfClosed
         case _: Completed =>
-          logger.info(s"Client issued message but stream $streamName already completed")
+          logger.debug(s"Client issued message but stream $streamName already completed")
       }
-      Success(())
+      Validation.unit
     }
   }
 
@@ -82,13 +84,13 @@ class BidiStreamCall[Req, Res](
         return alreadyHalfClosed
       case BothOpen =>
         state = Receiving
-        logger.info(s"Completing bidi stream '$streamName': Scenario '${session.scenario}', UserId #${session.userId}")
+        logger.debug(s"Completing bidi stream '$streamName': Scenario '${session.scenario}', UserId #${session.userId}")
         call.halfClose()
       case _: Completed =>
         logger.debug(s"Client issued complete order but stream $streamName already completed")
     }
     combineState(mainSession = session, next, waitType)
-    Success(())
+    Validation.unit
   }
 
   private def alreadyHalfClosed = Failure(s"Stream $streamName already completed by client")

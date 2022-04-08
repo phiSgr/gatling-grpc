@@ -34,6 +34,15 @@ trait GrpcDsl {
 
   def grpc(requestName: Expression[String]): Grpc = Grpc(requestName)
 
+  /**
+   * `$("name")` is a simpler alternative to the
+   * [[https://gatling.io/docs/gatling/reference/current/core/session/el/ EL string]] `"#{name}"`.
+   * Unlike the EL string, this [[Expression]] does not do type casting (e.g. parsing a String to an Int).
+   *
+   * @param name name of the session attribute
+   * @tparam T expected type of the session attribute. Usually inferred by the compiler
+   * @return an Expression that retrieves the session attribute and checks its type
+   */
   def $[T: ClassTag : NotNothing](name: String): Expression[T] = s => s.attributes.get(name) match {
     case Some(t: T) => Success(t)
     case None => ElMessages.undefinedSessionAttribute(name)
@@ -56,4 +65,16 @@ trait GrpcDsl {
    * the stream ends.
    */
   def NextMessage: StreamCall.WaitType = StreamCall.NextMessage
+
+  /**
+   * Passed to [[com.github.phisgr.gatling.grpc.action.StreamStartBuilder.streamEndLog]]
+   * Never add the stream end event to the report.
+   */
+  def Never: StreamCall.StreamEndLog = StreamCall.Never
+
+  /**
+   * Passed to [[com.github.phisgr.gatling.grpc.action.StreamStartBuilder.streamEndLog]]
+   * Add the stream end event to the report only when an error occurred.
+   */
+  def ErrorOnly: StreamCall.StreamEndLog = StreamCall.ErrorOnly
 }
