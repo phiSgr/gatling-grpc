@@ -30,7 +30,9 @@ lazy val root = (project in file("."))
     Test / PB.targets := Seq(
       scalapb.gen() -> (Test / sourceManaged).value,
       PB.gens.java -> (Test / sourceManaged).value,
+      PB.gens.plugin("grpc-java") -> (Test / sourceManaged).value
     ),
+    libraryDependencies += ("io.grpc" % "protoc-gen-grpc-java" % "1.46.0") asProtocPlugin(),
     scalacOptions ++= Seq(
       "-language:existentials",
       "-language:implicitConversions",
@@ -108,3 +110,13 @@ lazy val bench = (project in file("bench"))
     ),
   )
   .dependsOn(macroSub % "compile-internal")
+
+lazy val kt = (project in file("kt"))
+  .settings(commonSettings: _*)
+  .settings(
+    kotlinVersion := "1.6.21",
+    kotlinLib("stdlib"),
+    libraryDependencies += "io.gatling" % "gatling-core-java" % gatlingVersion,
+    javacOptions ++= Seq("-Xlint:unchecked", "-Xdiags:verbose"),
+  )
+  .dependsOn(root % "compile->compile;test->test")
