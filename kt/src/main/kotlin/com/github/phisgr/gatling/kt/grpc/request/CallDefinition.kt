@@ -50,6 +50,12 @@ abstract class CallDefinition<
         })
     )
 
+
+    /**
+     * To define the extractions outside this method,
+     * see [com.github.phisgr.gatling.kt.grpc.extract] and
+     * [com.github.phisgr.gatling.kt.grpc.extractMultiple].
+     */
     @JvmName("_KotlinCheck")
     fun check(vararg checks: From<Res>.() -> CheckBuilder): Self = wrap(
         asScala().check(
@@ -78,13 +84,13 @@ abstract class CallDefinition<
 //    fun checkIf(condition: BiFunction<WrappedRes, Session, Boolean>): ConditionWithRes<Self, Req, Res, WrappedRes, Wrapped, Check> =
 //        checkIf { res, session -> condition.apply(res, session) }
 
-//    @JvmName("_KotlinCheckIf")
+    //    @JvmName("_KotlinCheckIf")
     inline fun checkIf(crossinline condition: (Session) -> Boolean) = ConditionWithoutRes(
         this as Self,
         toScalaExpression { session -> condition(Session(session)) }
     )
 
-//    @JvmName("_KotlinCheckIf")
+    //    @JvmName("_KotlinCheckIf")
     inline fun checkIf(crossinline condition: (WrappedRes, Session) -> Boolean) = ConditionWithRes(
         this as Self
     ) { res, session ->

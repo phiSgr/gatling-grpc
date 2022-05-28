@@ -42,6 +42,8 @@ class StaticGrpcProtocol(private val wrapped: StaticGrpcProtocolS) : GrpcProtoco
 
     fun forceParsing(): StaticGrpcProtocol = StaticGrpcProtocol(wrapped.forceParsing())
 
+    fun shareChannel(): StaticGrpcProtocol = StaticGrpcProtocol(wrapped.shareChannel())
+
     fun <T : Any> header(
         key: Metadata.Key<T>,
         optional: Boolean,
