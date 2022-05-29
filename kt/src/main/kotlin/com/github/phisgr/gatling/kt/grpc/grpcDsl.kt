@@ -3,29 +3,24 @@
 
 package com.github.phisgr.gatling.kt.grpc
 
-import com.github.phisgr.gatling.generic.check.ResponseExtract
 import com.github.phisgr.gatling.grpc.Predef
-import com.github.phisgr.gatling.grpc.check.*
 import com.github.phisgr.gatling.kt.grpc.action.GrpcCallActionBuilder
-import com.github.phisgr.gatling.kt.grpc.util.safely
-import com.github.phisgr.gatling.kt.grpc.util.toScalaExpression
+import com.github.phisgr.gatling.kt.grpc.internal.safely
+import com.github.phisgr.gatling.kt.grpc.internal.toScalaExpression
 import com.github.phisgr.gatling.kt.javapb.MessageUpdater
 import io.gatling.commons.validation.Failure
 import io.gatling.commons.validation.Success
 import io.gatling.commons.validation.Validation
-import io.gatling.javaapi.core.CheckBuilder
 import io.gatling.javaapi.core.ProtocolBuilder
 import io.gatling.javaapi.core.Session
 import io.gatling.javaapi.core.internal.Expressions
 import io.grpc.ManagedChannelBuilder
 import io.grpc.Metadata
 import io.grpc.MethodDescriptor
-import io.grpc.Status
 import scala.Function1
 import java.util.function.Function
 import com.github.phisgr.gatling.grpc.protocol.GrpcProtocol as GrpcProtocolS
 import com.github.phisgr.gatling.grpc.protocol.StaticGrpcProtocol as StaticGrpcProtocolS
-import io.gatling.core.check.CheckBuilder as CheckBuilderS
 import io.gatling.core.session.Session as SessionS
 
 fun grpc(managedChannelBuilder: ManagedChannelBuilder<*>) = StaticGrpcProtocol(Predef.grpc(managedChannelBuilder))
@@ -108,10 +103,11 @@ class Unary<Req, Res>(
         payload { body }
 
     fun payload(f: Function<Session, Req>): GrpcCallActionBuilder<Req, Res> = when (f) {
-        is MessageUpdater<*, *> -> GrpcCallActionBuilder(Predef
-            .grpc(requestName)
-            .rpc(method)
-            .payload(f.asScala() as Function1<SessionS, Validation<Req>>)
+        is MessageUpdater<*, *> -> GrpcCallActionBuilder(
+            Predef
+                .grpc(requestName)
+                .rpc(method)
+                .payload(f.asScala() as Function1<SessionS, Validation<Req>>)
         )
         else -> payload { f.apply(it) }
     }
@@ -124,33 +120,4 @@ class Unary<Req, Res>(
                 .rpc(method)
                 .payload(toScalaExpression { session: SessionS -> f(Session(session)) })
         )
-}
-
-
-private inline fun <Res, Phantom> CheckBuilder.asScalaTyped(): CheckBuilderS<Phantom, Res> =
-    asScala() as io.gatling.core.check.CheckBuilder<Phantom, Res>
-
-/**
- * Kotlin does not know this class is contravariant
- */
-private fun <Super, Sub : Super> GrpcCheck<Super>.upcast(): GrpcCheck<Sub> = this as GrpcCheck<Sub>
-
-fun <Res> CheckBuilder.build(): GrpcCheck<Res> = when (val t = type()) {
-    is ResponseExtract -> asScalaTyped<Res, ResponseExtract>().build(Predef.resMat())
-    is StatusExtract -> asScalaTyped<Status, StatusExtract>().build(Predef.statusMat()).upcast()
-    is TrailersExtract -> asScalaTyped<Metadata, TrailersExtract>().build(Predef.trailersMat()).upcast()
-    else -> throw IllegalArgumentException("gRPC DSL doesn't support $t")
-}
-
-typealias GrpcStreamEnd = GrpcResponse<scala.runtime.`Null$`>
-
-fun CheckBuilder.buildStreamEnd(): StreamCheck<GrpcStreamEnd> = when (val t = type()) {
-    is StatusExtract -> asScalaTyped<Status, StatusExtract>().build(Predef.streamStatusMat())
-    is TrailersExtract -> asScalaTyped<Metadata, TrailersExtract>().build(Predef.streamTrailersMat())
-    else -> throw IllegalArgumentException("gRPC DSL doesn't support $t")
-} as StreamCheck<GrpcStreamEnd>
-
-fun <Res> CheckBuilder.buildStream(): StreamCheck<Res> = when (val t = type()) {
-    is ResponseExtract -> asScalaTyped<Res, ResponseExtract>().build(Predef.streamResMat())
-    else -> throw IllegalArgumentException("gRPC DSL doesn't support $t")
 }

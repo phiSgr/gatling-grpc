@@ -2,7 +2,7 @@ package com.github.phisgr.gatling.kt.grpc.request
 
 import com.github.phisgr.gatling.grpc.check.CheckWithSelfType
 import com.github.phisgr.gatling.kt.grpc.GrpcProtocol
-import com.github.phisgr.gatling.kt.grpc.util.*
+import com.github.phisgr.gatling.kt.grpc.internal.*
 import io.gatling.commons.validation.Validation
 import io.gatling.javaapi.core.ActionBuilder
 import io.gatling.javaapi.core.CheckBuilder
@@ -11,8 +11,6 @@ import io.gatling.javaapi.core.internal.Expressions
 import io.grpc.CallOptions
 import io.grpc.Metadata
 import scala.Function2
-import java.util.function.BiFunction
-import java.util.function.Function
 import com.github.phisgr.gatling.grpc.request.CallDefinition as CallDefinitionS
 import io.gatling.core.session.Session as SessionS
 

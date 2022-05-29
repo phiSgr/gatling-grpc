@@ -30,3 +30,48 @@ TestUpdateExpr.updateSimpleExpr:·gc.alloc.rate.norm                thrpt   50  
 TestUpdateExpr.updateSimpleExprJava                                thrpt   50  45678.602 ± 1618.755  ops/ms
 TestUpdateExpr.updateSimpleExprJava:·gc.alloc.rate.norm            thrpt   50     83.200 ±    3.200    B/op
 ```
+
+# Java/Kotlin checks
+
+`sbt bench/clean 'bench/Jmh/run -i 3 -wi 3 -f3 -t1 -prof gc .*TestCheck.*'`
+
+The `TestCheck` benchmarks include the essentials of the handling of a gRPC response -
+parsing, status code checking, and content checking.
+
+Some observations:
+
+- The Kotlin inline functions have a minor win over the Java checks.
+  See the [POC readme](../kt/README.md#inline-functions) for the reason.
+- The implicit conversion `value2Success` has an evidence param (`NOT_FOR_USER_CODE`).
+  It creates a new object every time,
+  and costs an extra 16 bytes (in my JVM).\
+  One would hope JVM could inline and remove it,
+  or Gatling would change it to a static object (c.f. `object Keep` in Akka Streams).
+- The no-op `transform` added by `io.gatling.javaapi.core.CheckBuilder.Find.Default.find`
+  is quite costly!
+    - In the earlier tests I have done, which only includes the content testing logic,
+      it is a 33% slow down (from 30k ops/ms to 20k ops/ms).
+- In this test the Kotlin checks are slightly faster than the Scala baseline,
+  but the bytecode isn't exactly what Scala would generate,
+  so don't worry about it that much.
+
+```
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+Benchmark                                                           Mode  Cnt     Score     Error   Units
+TestCheck.javaCheck                                                thrpt    9  7794.465 ± 177.441  ops/ms
+TestCheck.javaCheck:·gc.alloc.rate.norm                            thrpt    9   616.000 ±   0.001    B/op
+TestCheck.kotlinElCheck                                            thrpt    9  8062.523 ±  79.503  ops/ms
+TestCheck.kotlinElCheck:·gc.alloc.rate.norm                        thrpt    9   616.000 ±   0.001    B/op
+TestCheck.kotlinPlainCheck                                         thrpt    9  8056.610 ± 120.829  ops/ms
+TestCheck.kotlinPlainCheck:·gc.alloc.rate.norm                     thrpt    9   616.000 ±   0.001    B/op
+TestCheck.kotlinWrappedCheck                                       thrpt    9  7057.859 ±  42.560  ops/ms
+TestCheck.kotlinWrappedCheck:·gc.alloc.rate.norm                   thrpt    9   688.000 ±   0.001    B/op
+TestCheck.scalaBaselineCheck                                       thrpt    9  7887.096 ± 144.031  ops/ms
+TestCheck.scalaBaselineCheck:·gc.alloc.rate.norm                   thrpt    9   616.000 ±   0.001    B/op
+TestCheck.scalaCheckWithImplicit                                   thrpt    9  7628.845 ± 106.257  ops/ms
+TestCheck.scalaCheckWithImplicit:·gc.alloc.rate.norm               thrpt    9   632.000 ±   0.001    B/op
+```

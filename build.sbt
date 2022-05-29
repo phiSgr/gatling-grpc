@@ -101,13 +101,14 @@ lazy val javaPbIjExt = (project in file("java-pb-intellij"))
 
 lazy val bench = (project in file("bench"))
   .settings(commonSettings: _*)
-  .dependsOn(root, javaPb)
+  .dependsOn(root, javaPb, kt)
   .enablePlugins(JmhPlugin)
   .settings(
     Compile / PB.targets := Seq(
       PB.gens.java -> (Compile / sourceManaged).value,
       scalapb.gen() -> (Compile / sourceManaged).value
     ),
+    kotlinVersion := "1.6.21",
   )
   .dependsOn(macroSub % "compile-internal")
 

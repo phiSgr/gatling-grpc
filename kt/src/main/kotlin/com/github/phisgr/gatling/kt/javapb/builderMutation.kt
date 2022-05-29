@@ -1,6 +1,6 @@
 package com.github.phisgr.gatling.kt.javapb
 
-import com.github.phisgr.gatling.kt.grpc.util.validation
+import com.github.phisgr.gatling.kt.grpc.internal.validation
 import com.google.protobuf.Message
 import io.gatling.commons.validation.Validation
 import io.gatling.javaapi.core.Session
