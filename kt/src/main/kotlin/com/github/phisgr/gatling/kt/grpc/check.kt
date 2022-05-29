@@ -20,11 +20,11 @@ inline fun <Res, reified T> extractMultiple(crossinline f: (Res) -> List<T>?): C
 
 @Suppress("UNCHECKED_CAST")
 fun <Res, X> extractMultiple(f: Function<Res, List<X>?>): CheckBuilder.MultipleFind<X> {
-    val xClass = TypeResolver.resolveRawArguments(Function::class.java, f.javaClass)[1]
     return DefaultMultipleFind(
         Predef.extractMultiple(toScalaSeqOptionExpression { res: Res -> f.apply(res) }),
         GrpcCheckType.Response,
-        xClass as Class<X>
+        // TODO: resolve class X from f
+        Object::class.java as Class<X>
     )
 }
 

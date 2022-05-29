@@ -49,6 +49,7 @@ class MessageUpdater<M : Message, B : Message.Builder>(
     fun <Field> update(
         setter: KotlinFunction<B, KotlinFunction<Field, Any>>,
         el: String,
+        // TODO: can we resolve `Field` from `setter`?
         clazz: Class<Field>,
     ): MessageUpdater<M, B> {
         val v = Expressions.expressionToJavaFunction(
