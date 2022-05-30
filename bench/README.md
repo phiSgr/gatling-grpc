@@ -40,7 +40,8 @@ parsing, status code checking, and content checking.
 
 Some observations:
 
-- The Kotlin inline functions have a minor win over the Java checks.
+- The Kotlin inline functions, which emits a Scala `Function1`,
+  have a minor win over the Java checks, which have to use wrappers.
   See the [POC readme](../kt/README.md#inline-functions) for the reason.
 - The implicit conversion `value2Success` has an evidence param (`NOT_FOR_USER_CODE`).
   It creates a new object every time,
@@ -49,6 +50,11 @@ Some observations:
   or Gatling would change it to a static object (c.f. `object Keep` in Akka Streams).
 - The no-op `transform` added by `io.gatling.javaapi.core.CheckBuilder.Find.Default.find`
   is quite costly!
+    - There are 3 extra object allocations
+        1. the closure (which calls `Option.map`) to send to `Validation.map`
+        2. The `Option` object
+        3. the new `Validation` Object
+      Each of them wraps around a pointer, costing 72 bytes in total.
     - In the earlier tests I have done, which only includes the content testing logic,
       it is a 33% slow down (from 30k ops/ms to 20k ops/ms).
 - In this test the Kotlin checks are slightly faster than the Scala baseline,

@@ -37,7 +37,7 @@ When `.checkIf { session -> session.userId() == 50L }` is called,
 a `scala.Function1` is created that contains the logic directly,
 rather than a wrapper object that calls the wrapped function object.
 
-When `checkIf` is called in Java, a wrapper will be created.
+When `checkIf` is called in Java, a wrapper will have to be created.
 But in the code there is no loss of ergonomics,
 despite the use of Kotlin function type.
 
