@@ -8,6 +8,7 @@ import com.github.phisgr.gatling.kt.grpc.extract
 import com.github.phisgr.gatling.kt.grpc.internal.GrpcCheckType
 import com.github.phisgr.gatling.kt.grpc.internal.build
 import com.github.phisgr.gatling.kt.grpc.internal.toScalaOptionExpression
+import com.github.phisgr.gatling.kt.grpc.internal.toSeq
 import com.github.phisgr.gatling.pb.Test
 import io.gatling.core.check.Check
 import io.gatling.core.session.Session
@@ -15,8 +16,6 @@ import io.gatling.core.session.`Session$`
 import io.gatling.javaapi.core.CheckBuilder
 import io.grpc.Metadata
 import io.grpc.Status
-import scala.collection.immutable.`$colon$colon`
-import scala.collection.immutable.`Nil$`
 import java.util.function.Function
 
 private val checkWithIdentityTransform: GrpcCheck<Test.SimpleMessage> =
@@ -53,14 +52,8 @@ val session: Session = `Session$`.`MODULE$`.apply(
 typealias Checks = scala.collection.immutable.List<Check<GrpcResponse<Test.SimpleMessage>>>
 
 @Suppress("UNCHECKED_CAST")
-private fun resolvedChecks(check: Check<GrpcResponse<Test.SimpleMessage>>) =
-    `$colon$colon`(
-        StatusExtract.DefaultCheck() as Check<GrpcResponse<Test.SimpleMessage>>,
-        `$colon$colon`(
-            check,
-            `Nil$`.`MODULE$` as Checks
-        ) as Checks
-    ) as Checks
+private fun resolvedChecks(check: Check<GrpcResponse<Test.SimpleMessage>>?): Checks =
+    listOfNotNull(StatusExtract.DefaultCheck(), check).toSeq().toList() as Checks
 
 val kotlinPlainCheckList: Checks = resolvedChecks(checkPlain)
 val kotlinElCheckList: Checks = resolvedChecks(checkEl)
@@ -68,3 +61,14 @@ val kotlinWrappedCheckList: Checks = resolvedChecks(checkWithIdentityTransform)
 val javaCheckList: Checks = resolvedChecks(CheckJ.check)
 val scalaWithImplicitCheckList: Checks = resolvedChecks(scalaImplicitCheck)
 val scalaBaselineCheckList: Checks = resolvedChecks(scalaBaselineCheck)
+
+val noCheck: Checks = resolvedChecks(null)
+val javaCheckIf: Checks = resolvedChecks(CheckJ.checkIf)
+val kotlinCheckIf: Checks = resolvedChecks(
+    CheckJ.dummyBuilder
+        .checkIf { session -> session.userId() == 0L }
+        .then({ extract { it.s }.shouldBe(CheckJ.MESSAGE) })
+        .asScala()
+        .checks()
+        .head()
+)

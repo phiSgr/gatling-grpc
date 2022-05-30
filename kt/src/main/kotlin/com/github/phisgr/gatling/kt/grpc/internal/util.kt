@@ -12,8 +12,11 @@ import io.gatling.javaapi.core.CheckBuilder
 import io.gatling.javaapi.core.internal.Converters
 import scala.Function1
 import scala.Option
+import scala.Some
 import scala.collection.immutable.Seq
 import scala.util.control.NonFatal
+
+typealias UnknownTypeParam = Any // weird Scala
 
 fun <T> List<T>.toSeq(): Seq<T> = Converters
     // Seems rather hard to remove redundant copy, unless we write a new wrapper class.
@@ -27,7 +30,11 @@ fun <T> List<T>.toSeq(): Seq<T> = Converters
  */
 class From<out Res> {
     inline fun <reified X> extract(crossinline f: (Res) -> X?): CheckBuilder.Find<X> =
-        DefaultFind(Predef.extract(toScalaOptionExpression(f)), GrpcCheckType.Response, X::class.java)
+        DefaultFind(
+            Predef.extract(toScalaOptionExpression(f)),
+            GrpcCheckType.Response,
+            X::class.java
+        )
 
     inline fun <reified X> extractMultiple(crossinline f: (Res) -> List<X>?): CheckBuilder.MultipleFind<X> =
         DefaultMultipleFind(
@@ -42,6 +49,19 @@ class From<out Res> {
  * Inline version of [io.gatling.javaapi.core.internal.Expressions.validation]
  */
 inline fun <T> validation(f: () -> T): Validation<T> = safely { Success.apply(f()) }
+
+/**
+ * Like [validation], but no allocation of a new [Success] object.
+ */
+inline fun boolValidation(f: () -> Boolean): Validation<UnknownTypeParam> = safely {
+    if (f()) Validation.TrueSuccess() else Validation.FalseSuccess()
+}
+
+inline fun <T> optionalValidation(f: () -> T?): Validation<Option<T>> = safely {
+    val res = f()
+    val wrapped = if (res == null) Validation.NoneSuccess() else Success(Some(res))
+    wrapped as Validation<Option<T>>
+}
 
 inline fun <T> safely(f: () -> Validation<T>) = try {
     f()
@@ -58,13 +78,13 @@ fun handleThrowable(e: Throwable): Failure {
     }
 }
 
-inline fun <Res, T> toScalaOptionExpression(crossinline f: (Res) -> T?): Function1<Res, Validation<Option<T>>> =
-    toScalaExpression { Option.apply(f(it)) }
-
 inline fun <Res, T> toScalaExpression(crossinline f: (Res) -> T): Function1<Res, Validation<T>> =
     Function1 { res: Res -> validation { f(res) } }
 
-inline fun <Res, T> toScalaSeqOptionExpression(crossinline f: (Res) -> List<T>?): Function1<Res, Validation<Option<Seq<T>?>>> =
-    Function1 { res: Res -> validation { Option.apply(f(res)?.toSeq()) } }
+inline fun <Res, T> toScalaOptionExpression(crossinline f: (Res) -> T?): Function1<Res, Validation<Option<T>>> =
+    Function1 { res: Res -> optionalValidation { f(res) } }
+
+inline fun <Res, T> toScalaSeqOptionExpression(crossinline f: (Res) -> List<T>?): Function1<Res, Validation<Option<Seq<T>>>> =
+    Function1 { res: Res -> optionalValidation { f(res)?.toSeq() } }
 
 val dummyFrom = From<Nothing>()

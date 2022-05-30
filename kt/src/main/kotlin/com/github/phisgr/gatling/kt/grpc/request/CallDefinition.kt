@@ -14,8 +14,6 @@ import scala.Function2
 import com.github.phisgr.gatling.grpc.request.CallDefinition as CallDefinitionS
 import io.gatling.core.session.Session as SessionS
 
-private typealias UnknownTypeParam = Any // weird Scala
-
 @Suppress("UNCHECKED_CAST")
 abstract class CallDefinition<
     Self : CallDefinition<Self, Req, Res, WrappedRes, Wrapped, Check>,
@@ -84,15 +82,14 @@ abstract class CallDefinition<
 
     //    @JvmName("_KotlinCheckIf")
     inline fun checkIf(crossinline condition: (Session) -> Boolean) = ConditionWithoutRes(
-        this as Self,
-        toScalaExpression { session -> condition(Session(session)) }
-    )
+        this as Self
+    ) { session -> boolValidation { condition(Session(session)) } }
 
     //    @JvmName("_KotlinCheckIf")
     inline fun checkIf(crossinline condition: (WrappedRes, Session) -> Boolean) = ConditionWithRes(
         this as Self
     ) { res, session ->
-        validation { condition(res as WrappedRes, Session(session)) }
+        boolValidation { condition(res as WrappedRes, Session(session)) }
     }
 
     protected abstract fun buildCheck(check: CheckBuilder): Check

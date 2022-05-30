@@ -42,7 +42,7 @@ Some observations:
 
 - The Kotlin inline functions, which emits a Scala `Function1`,
   have a minor win over the Java checks, which have to use wrappers.
-  See the [POC readme](../kt/README.md#inline-functions) for the reason.
+  See the [POC readme](../kt/README.md#inline-functions) for the details.
 - The implicit conversion `value2Success` has an evidence param (`NOT_FOR_USER_CODE`).
   It creates a new object every time,
   and costs an extra 16 bytes (in my JVM).\
@@ -51,15 +51,27 @@ Some observations:
 - The no-op `transform` added by `io.gatling.javaapi.core.CheckBuilder.Find.Default.find`
   is quite costly!
     - There are 3 extra object allocations
+
         1. the closure (which calls `Option.map`) to send to `Validation.map`
         2. The `Option` object
         3. the new `Validation` Object
+
       Each of them wraps around a pointer, costing 72 bytes in total.
     - In the earlier tests I have done, which only includes the content testing logic,
       it is a 33% slow down (from 30k ops/ms to 20k ops/ms).
 - In this test the Kotlin checks are slightly faster than the Scala baseline,
   but the bytecode isn't exactly what Scala would generate,
   so don't worry about it that much.
+- The `checkIf` tests have a false condition,
+  so the work done is similar to no check at all.
+    - The condition involves a Java `io.gatling.javaapi.core.Session` wrapper
+      that wraps around the Scala `io.gatling.core.session.Session`.
+      But no extra allocation found in this benchmark,
+      apparently the JVM can inline that.
+    - I was hoping the inline function condition to be faster than Java lambdas.
+      But their difference is below noise.
+      Well I guess inlining is inlining,
+      whether done by Kotlin compiler or the JIT compiler.
 
 ```
 REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
@@ -80,4 +92,13 @@ TestCheck.scalaBaselineCheck                                       thrpt    9  7
 TestCheck.scalaBaselineCheck:·gc.alloc.rate.norm                   thrpt    9   616.000 ±   0.001    B/op
 TestCheck.scalaCheckWithImplicit                                   thrpt    9  7628.845 ± 106.257  ops/ms
 TestCheck.scalaCheckWithImplicit:·gc.alloc.rate.norm               thrpt    9   632.000 ±   0.001    B/op
+```
+
+```
+TestCheck.javaCheckIf                                     thrpt    9  10243.311 ± 225.847  ops/ms
+TestCheck.javaCheckIf:·gc.alloc.rate.norm                 thrpt    9    464.000 ±   0.001    B/op
+TestCheck.justParse                                       thrpt    9  10985.399 ± 108.887  ops/ms
+TestCheck.justParse:·gc.alloc.rate.norm                   thrpt    9    464.000 ±   0.001    B/op
+TestCheck.kotlinCheckIf                                   thrpt    9  10309.615 ± 300.168  ops/ms
+TestCheck.kotlinCheckIf:·gc.alloc.rate.norm               thrpt    9    464.000 ±   0.001    B/op
 ```

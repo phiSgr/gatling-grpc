@@ -62,4 +62,28 @@ open class TestCheck {
         scalaBaselineCheckList,
         null
     )
+
+    @Benchmark
+    fun javaCheckIf(): Tuple2<Session, Option<Failure>> = `Check$`.`MODULE$`.check(
+        res(),
+        session,
+        javaCheckIf,
+        null
+    )
+
+    @Benchmark
+    fun kotlinCheckIf(): Tuple2<Session, Option<Failure>> = `Check$`.`MODULE$`.check(
+        res(),
+        session,
+        kotlinCheckIf,
+        null
+    )
+
+    @Benchmark
+    fun justParse(): Tuple2<Session, Option<Failure>> = `Check$`.`MODULE$`.check(
+        res(),
+        session,
+        noCheck,
+        null
+    )
 }
