@@ -43,22 +43,6 @@ Some observations:
 - The Kotlin inline functions, which emits a Scala `Function1`,
   have a minor win over the Java checks, which have to use wrappers.
   See the [POC readme](../kt/README.md#inline-functions) for the details.
-- The implicit conversion `value2Success` has an evidence param (`NOT_FOR_USER_CODE`).
-  It creates a new object every time,
-  and costs an extra 16 bytes (in my JVM).\
-  One would hope JVM could inline and remove it,
-  or Gatling would change it to a static object (c.f. `object Keep` in Akka Streams).
-- The no-op `transform` added by `io.gatling.javaapi.core.CheckBuilder.Find.Default.find`
-  is quite costly!
-    - There are 3 extra object allocations
-
-        1. the closure (which calls `Option.map`) to send to `Validation.map`
-        2. The `Option` object
-        3. the new `Validation` Object
-
-      Each of them wraps around a pointer, costing 72 bytes in total.
-    - In the earlier tests I have done, which only includes the content testing logic,
-      it is a 33% slow down (from 30k ops/ms to 20k ops/ms).
 - In this test the Kotlin checks are slightly faster than the Scala baseline,
   but the bytecode isn't exactly what Scala would generate,
   so don't worry about it that much.
@@ -79,26 +63,23 @@ why the numbers are the way they are. Use profilers (see -prof, -lprof), design 
 experiments, perform baseline and negative tests that provide experimental control, make sure
 the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
 Do not assume the numbers tell you what you want them to tell.
-Benchmark                                                           Mode  Cnt     Score     Error   Units
-TestCheck.javaCheck                                                thrpt    9  7794.465 ± 177.441  ops/ms
-TestCheck.javaCheck:·gc.alloc.rate.norm                            thrpt    9   616.000 ±   0.001    B/op
-TestCheck.kotlinElCheck                                            thrpt    9  8062.523 ±  79.503  ops/ms
-TestCheck.kotlinElCheck:·gc.alloc.rate.norm                        thrpt    9   616.000 ±   0.001    B/op
-TestCheck.kotlinPlainCheck                                         thrpt    9  8056.610 ± 120.829  ops/ms
-TestCheck.kotlinPlainCheck:·gc.alloc.rate.norm                     thrpt    9   616.000 ±   0.001    B/op
-TestCheck.kotlinWrappedCheck                                       thrpt    9  7057.859 ±  42.560  ops/ms
-TestCheck.kotlinWrappedCheck:·gc.alloc.rate.norm                   thrpt    9   688.000 ±   0.001    B/op
-TestCheck.scalaBaselineCheck                                       thrpt    9  7887.096 ± 144.031  ops/ms
-TestCheck.scalaBaselineCheck:·gc.alloc.rate.norm                   thrpt    9   616.000 ±   0.001    B/op
-TestCheck.scalaCheckWithImplicit                                   thrpt    9  7628.845 ± 106.257  ops/ms
-TestCheck.scalaCheckWithImplicit:·gc.alloc.rate.norm               thrpt    9   632.000 ±   0.001    B/op
-```
-
-```
-TestCheck.javaCheckIf                                     thrpt    9  10243.311 ± 225.847  ops/ms
-TestCheck.javaCheckIf:·gc.alloc.rate.norm                 thrpt    9    464.000 ±   0.001    B/op
-TestCheck.justParse                                       thrpt    9  10985.399 ± 108.887  ops/ms
-TestCheck.justParse:·gc.alloc.rate.norm                   thrpt    9    464.000 ±   0.001    B/op
-TestCheck.kotlinCheckIf                                   thrpt    9  10309.615 ± 300.168  ops/ms
-TestCheck.kotlinCheckIf:·gc.alloc.rate.norm               thrpt    9    464.000 ±   0.001    B/op
+Benchmark                                                           Mode  Cnt      Score     Error   Units
+TestCheck.javaCheck                                                thrpt    9   7812.965 ± 168.140  ops/ms
+TestCheck.javaCheck:·gc.alloc.rate.norm                            thrpt    9    616.000 ±   0.001    B/op
+TestCheck.javaCheckIf                                              thrpt    9  10400.860 ±  91.246  ops/ms
+TestCheck.javaCheckIf:·gc.alloc.rate.norm                          thrpt    9    464.000 ±   0.001    B/op
+TestCheck.justParse                                                thrpt    9  11202.544 ± 167.100  ops/ms
+TestCheck.justParse:·gc.alloc.rate.norm                            thrpt    9    464.000 ±   0.001    B/op
+TestCheck.kotlinCheckIf                                            thrpt    9  10353.334 ± 259.291  ops/ms
+TestCheck.kotlinCheckIf:·gc.alloc.rate.norm                        thrpt    9    464.000 ±   0.001    B/op
+TestCheck.kotlinElCheck                                            thrpt    9   7839.525 ±  61.748  ops/ms
+TestCheck.kotlinElCheck:·gc.alloc.rate.norm                        thrpt    9    616.000 ±   0.001    B/op
+TestCheck.kotlinPlainCheck                                         thrpt    9   7799.017 ± 155.644  ops/ms
+TestCheck.kotlinPlainCheck:·gc.alloc.rate.norm                     thrpt    9    616.000 ±   0.001    B/op
+TestCheck.kotlinWrappedCheck                                       thrpt    9   7824.871 ±  39.145  ops/ms
+TestCheck.kotlinWrappedCheck:·gc.alloc.rate.norm                   thrpt    9    616.000 ±   0.001    B/op
+TestCheck.scalaBaselineCheck                                       thrpt    9   7679.443 ±  61.459  ops/ms
+TestCheck.scalaBaselineCheck:·gc.alloc.rate.norm                   thrpt    9    616.000 ±   0.001    B/op
+TestCheck.scalaCheckWithImplicit                                   thrpt    9   7554.167 ± 176.422  ops/ms
+TestCheck.scalaCheckWithImplicit:·gc.alloc.rate.norm               thrpt    9    616.000 ±   0.001    B/op
 ```

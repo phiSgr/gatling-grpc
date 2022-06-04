@@ -26,7 +26,7 @@ class DefaultFind<Phantom, T, X>(
     wrapped,
     checkType,
     clazz,
-    Function.identity()
+    null
 ) {
     override fun find(): CheckBuilder.Validate<X> = CheckBuilder.Validate.Default(wrapped.find(), type, javaXClass)
 }
@@ -40,7 +40,7 @@ class DefaultMultipleFind<Phantom, T, X>(
     wrapped,
     checkType,
     clazz,
-    Function.identity()
+    null
 ) {
     override fun find(): CheckBuilder.Validate<X> = CheckBuilder.Validate.Default(wrapped.find(), type, javaXClass)
     override fun find(occurrence: Int): CheckBuilder.Validate<X> =

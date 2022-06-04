@@ -1,5 +1,6 @@
 package com.github.phisgr.gatling.grpc.bench
 
+import com.github.phisgr.gatling.generic.check.ResponseExtract
 import com.github.phisgr.gatling.grpc.Predef
 import com.github.phisgr.gatling.grpc.check.GrpcCheck
 import com.github.phisgr.gatling.grpc.check.GrpcResponse
@@ -23,7 +24,7 @@ private val checkWithIdentityTransform: GrpcCheck<Test.SimpleMessage> =
         Predef.extract(toScalaOptionExpression { m: Test.SimpleMessage -> m.s }),
         GrpcCheckType.Response,
         String::class.java,
-        Function.identity()
+        null as Function<String, String>?
     )
         .shouldBe(CheckJ.MESSAGE)
         .build()

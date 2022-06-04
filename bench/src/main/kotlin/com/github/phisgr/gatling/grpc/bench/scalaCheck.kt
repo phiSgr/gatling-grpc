@@ -15,7 +15,6 @@ private val helloExpression =
     Predef.stringToExpression(
         CheckJ.MESSAGE,
         TypeCaster.StringCaster(),
-        `Exclude$`.`MODULE$`.NOT_FOR_USER_CODE(),
         ClassTag.apply(String::class.java)
     )
 
@@ -34,7 +33,7 @@ val scalaImplicitCheck: GrpcCheck<Test.SimpleMessage> = com.github.phisgr.gatlin
         Predef.value2Success(
             Some.apply(m.s),
             // This evidence param may increase the bytecode size and inhibit inlining
-            `Exclude$`.`MODULE$`.NOT_FOR_USER_CODE()
+            `Exclude$`.`MODULE$`.apply()
         )
     }
 )

@@ -4,7 +4,7 @@ val commonSettings = Seq(
   crossPaths := false,
 )
 
-val gatlingVersion = "3.7.6"
+val gatlingVersion = "3.7.5-SNAPSHOT" // from publishLocal
 val gatlingCore = "io.gatling" % "gatling-core" % gatlingVersion
 
 val publishSettings = {
@@ -25,7 +25,7 @@ lazy val root = (project in file("."))
   .settings(publishSettings: _*)
   .settings(
     name := "gatling-grpc",
-    version := "0.13.0",
+    version := "0.13.1-SNAPSHOT",
     inConfig(Test)(sbtprotoc.ProtocPlugin.protobufConfigSettings),
     Test / PB.targets := Seq(
       scalapb.gen() -> (Test / sourceManaged).value,
@@ -45,8 +45,8 @@ lazy val root = (project in file("."))
       "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf",
       "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion,
       gatlingCore,
-      "com.github.phisgr" % "gatling-ext" % "0.3.0",
-      "io.gatling.highcharts" % "gatling-charts-highcharts" % gatlingVersion % "test",
+      "com.github.phisgr" % "gatling-ext" % "0.3.0" intransitive(),
+//      "io.gatling.highcharts" % "gatling-charts-highcharts" % "3.7.6" % "test",
       "io.gatling" % "gatling-test-framework" % gatlingVersion % "test",
       "org.scalatest" %% "scalatest" % "3.2.12" % "test",
     ),
