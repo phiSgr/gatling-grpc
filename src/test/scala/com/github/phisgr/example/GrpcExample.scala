@@ -4,8 +4,7 @@ import com.github.phisgr.example.chat._
 import com.github.phisgr.example.util._
 import com.github.phisgr.gatling.grpc.Predef._
 import com.github.phisgr.gatling.pb._
-// stringToExpression is hidden because we have $ in GrpcDsl
-import io.gatling.core.Predef.{stringToExpression => _, _}
+import io.gatling.core.Predef._
 import io.gatling.core.session.Expression
 import io.grpc.Status
 

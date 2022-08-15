@@ -19,7 +19,7 @@ import io.grpc.{ClientCall, Metadata, Status}
 
 import scala.util.control.{NoStackTrace, NonFatal}
 
-abstract class StreamCall[Req, Res, State >: ServerStreamState](
+abstract class StreamCall[Req, Res, State >: Completed](
   requestName: String,
   streamName: String,
   initState: State,
@@ -32,8 +32,9 @@ abstract class StreamCall[Req, Res, State >: ServerStreamState](
   statsEngine: StatsEngine,
   logWhen: StreamEndLog
 ) extends StrictLogging with Cancellable {
+  def state: State = _state
 
-  protected var state: State = initState
+  protected var _state: State = initState
   protected var callStartTime: Long = _
 
   logger.debug(s"Opening stream '$streamName': Scenario '${streamSession.scenario}', UserId #${streamSession.userId}")
@@ -128,7 +129,7 @@ abstract class StreamCall[Req, Res, State >: ServerStreamState](
   }
 
   def onServerCompleted(grpcStatus: Status, trailers: Metadata, completeTimeMillis: Long): Unit = {
-    state = Completed(grpcStatus, trailers)
+    _state = Completed(grpcStatus, trailers)
     val (newSession, checkError) = Check.check(
       new GrpcResponse(null, grpcStatus, trailers),
       streamSession,
@@ -188,7 +189,7 @@ abstract class StreamCall[Req, Res, State >: ServerStreamState](
   private[this] var waitType: WaitType = NoWait
 
   def combineState(mainSession: Session, next: Action, waitType: WaitType): Unit = {
-    val completed = state.isInstanceOf[Completed]
+    val completed = _state.isInstanceOf[Completed]
     if (!completed && (waitType ne NoWait)) {
       this.mainSession = mainSession
       this.mainCont = next
@@ -211,17 +212,22 @@ abstract class StreamCall[Req, Res, State >: ServerStreamState](
   }
 }
 
-private[gatling] object StreamCall {
+object StreamCall {
   object Cancelled extends NoStackTrace
 
   sealed trait BidiStreamState
-  sealed trait ServerStreamState extends BidiStreamState
+  sealed trait ServerStreamState
+  sealed trait ClientStreamState
 
-  case object BothOpen extends BidiStreamState
+  case object BothOpen extends BidiStreamState with ClientStreamState
 
-  case object Receiving extends ServerStreamState
+  // technically the ClientStreamState can be Receiving,
+  // but with the current API, the virtual user "blocks" after client completes
+  // and unblocks when the server responds
+  // so this state is not accessible
+  case object Receiving extends ServerStreamState with BidiStreamState
 
-  case class Completed(status: Status, header: Metadata) extends ServerStreamState
+  case class Completed(status: Status, header: Metadata) extends ServerStreamState with BidiStreamState with ClientStreamState
 
   def ensureNoStream(session: Session, streamName: String, direction: String): Validation[Unit] = {
     if (session.contains(streamName)) {

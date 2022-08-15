@@ -10,6 +10,13 @@ import io.gatling.core.util.NameGen
 
 import scala.reflect.ClassTag
 
+object StreamMessageAction {
+  def fetchCall[Call: ClassTag](streamName: String, session: Session, direction: String): Validation[Call] =
+    session(streamName)
+      .validate[Call]
+      .mapFailure(m => s"Couldn't fetch open $direction stream: $m")
+}
+
 abstract class StreamMessageAction(
   override val requestName: Expression[String],
   ctx: ScenarioContext,
@@ -19,12 +26,8 @@ abstract class StreamMessageAction(
 ) extends RequestAction
   with ExitableAction
   with NameGen {
-  def callFetchErrorMessage: String = s"Couldn't fetch open $direction stream"
-
   final def fetchCall[Call: ClassTag](streamName: String, session: Session): Validation[Call] =
-    session(streamName)
-      .validate[Call]
-      .mapFailure(m => s"$callFetchErrorMessage: $m")
+    StreamMessageAction.fetchCall(streamName, session, direction)
 
   override val statsEngine: StatsEngine = ctx.coreComponents.statsEngine
   override val clock: Clock = ctx.coreComponents.clock

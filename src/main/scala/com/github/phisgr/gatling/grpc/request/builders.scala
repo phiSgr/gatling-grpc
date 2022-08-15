@@ -1,7 +1,9 @@
 package com.github.phisgr.gatling.grpc.request
 
 import com.github.phisgr.gatling.grpc.action._
-import com.github.phisgr.gatling.grpc.stream.StreamCall.{NoWait, WaitType}
+import com.github.phisgr.gatling.grpc.stream.StreamCall._
+import com.github.phisgr.gatling.grpc.stream.{BidiStreamCall, ClientStreamCall, ServerStreamCall, StreamCall}
+import io.gatling.core.Predef.Session
 import io.gatling.core.session.Expression
 import io.grpc.MethodDescriptor
 
@@ -28,7 +30,7 @@ class Unary[Req, Res] private[gatling](requestName: Expression[String], method: 
     GrpcCallActionBuilder(requestName, method, req)
 }
 
-sealed abstract class ListeningStream private[gatling] {
+sealed abstract class ListeningStream[Status >: Completed, C <: StreamCall[_, _, Status] : ClassTag] private[gatling] {
   val requestName: Expression[String]
   val streamName: String
   def direction: String
@@ -39,12 +41,16 @@ sealed abstract class ListeningStream private[gatling] {
 
   // Keep the nice looking no-parenthesis call syntax
   def reconciliate: StreamReconciliateBuilder = reconciliate()
+
+  def status: Expression[Status] = { session: Session =>
+    StreamMessageAction.fetchCall[C](streamName, session, direction).map(_.state)
+  }
 }
 
 case class ServerStream private[gatling](
   requestName: Expression[String],
   streamName: String
-) extends ListeningStream {
+) extends ListeningStream[ServerStreamState, ServerStreamCall[_, _]] {
   override def direction: String = "server"
 
   def start[Req, Res](method: MethodDescriptor[Req, Res])(req: Expression[Req]): ServerStreamStartActionBuilder[Req, Res] = {
@@ -56,7 +62,7 @@ case class ServerStream private[gatling](
 case class BidiStream private[gatling](
   requestName: Expression[String],
   streamName: String
-) extends ListeningStream {
+) extends ListeningStream[BidiStreamState, BidiStreamCall[_, _]] {
   override def direction: String = "bidi"
 
   def connect[Req: ClassTag, Res](method: MethodDescriptor[Req, Res]): BidiStreamStartActionBuilder[Req, Res] = {
@@ -92,4 +98,8 @@ case class ClientStream private[gatling](
    * so that we can better design the API.
    */
   def completeAndWait = new ClientStreamCompletionBuilder(requestName, streamName)
+
+  def status: Expression[ClientStreamState] = { session: Session =>
+    StreamMessageAction.fetchCall[ClientStreamCall[_, _]](streamName, session, clientStreamDirection).map(_.state)
+  }
 }

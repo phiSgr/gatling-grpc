@@ -8,8 +8,7 @@ import com.github.phisgr.gatling.grpc.Predef._
 import com.github.phisgr.gatling.pb._
 import io.grpc.CallOptions
 import io.grpc.Status.Code._
-// stringToExpression is hidden because we have $ in GrpcDsl
-import io.gatling.core.Predef.{stringToExpression => _, _}
+import io.gatling.core.Predef._
 import io.gatling.core.session.Expression
 
 import scala.concurrent.duration._

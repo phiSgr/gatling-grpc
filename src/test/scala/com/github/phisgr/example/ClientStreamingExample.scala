@@ -15,16 +15,27 @@ class ClientStreamingExample extends Simulation {
   val clientStream = grpc("Speak")
     .clientStream("call")
 
+  val send = clientStream.send(ChatMessage(data = "I'm bored"))
+  val repeatSendCounter = "repeatSendCounter"
+
   val speaker = scenario("Speaker")
     .exec(
       clientStream.connect(ChatServiceGrpc.METHOD_BLACK_HOLE)
         .extract(_.some)(_ lte 100)
     )
-    .repeat(_.userId.toInt) {
-      pause(10.millis)
-        .exec(clientStream.send(ChatMessage(data = "I'm bored")))
+    .repeat(_.userId.toInt, repeatSendCounter) {
+      doIfOrElse(clientStream.status.isCompleted) {
+        exec { session =>
+          println(s"Already completed: ${session.userId}")
+          // ugly way to break
+          session.set(repeatSendCounter, session.userId.toInt)
+        }
+      } {
+        exec(send).pace(10.millis)
+      }
     }
-    .exec(clientStream.copy(requestName = "Wrong Type").send("wrong type"))
+    .exec(send) // trigger debug log
+    .exec(clientStream.copy(requestName = "Wrong Type").send[String]("wrong type"))
     .exec(clientStream.completeAndWait)
     .exec(
       clientStream.connect(ChatServiceGrpc.METHOD_BLACK_HOLE)

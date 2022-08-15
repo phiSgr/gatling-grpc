@@ -61,7 +61,7 @@ class BidiStreamCall[Req, Res](
     if (!reqClass.isInstance(req)) {
       wrongTypeMessage[Req](req)
     } else {
-      state match {
+      _state match {
         case BothOpen =>
           logger.debug(
             s"Sending message ${toProtoString(req)} with stream '$streamName': Scenario '${streamSession.scenario}', UserId #${streamSession.userId}"
@@ -78,12 +78,12 @@ class BidiStreamCall[Req, Res](
   }
 
   def onClientCompleted(session: Session, next: Action, waitType: WaitType): Validation[Unit] = {
-    state match {
+    _state match {
       case Receiving =>
         logger.error(s"Client completed bidi stream $streamName twice")
         return alreadyHalfClosed
       case BothOpen =>
-        state = Receiving
+        _state = Receiving
         logger.debug(s"Completing bidi stream '$streamName': Scenario '${session.scenario}', UserId #${session.userId}")
         call.halfClose()
       case _: Completed =>

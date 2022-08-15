@@ -32,8 +32,8 @@ If your protobuf files are in `src/test/protobuf`
 instead of `src/main/protobuf`, change `Compile` to `Test`.
 
 ```sbt
-PB.targets in Test := Seq(
-  scalapb.gen() -> (sourceManaged in Test).value
+Test / PB.targets := Seq(
+  scalapb.gen() -> (Test / sourceManaged).value
 )
 ```
 

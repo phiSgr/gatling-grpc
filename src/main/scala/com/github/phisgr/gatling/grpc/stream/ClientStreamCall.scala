@@ -3,7 +3,7 @@ package com.github.phisgr.gatling.grpc.stream
 import com.github.phisgr.gatling.generic.util.EventLoopHelper
 import com.github.phisgr.gatling.grpc.check.{GrpcCheck, GrpcResponse}
 import com.github.phisgr.gatling.grpc.protocol.Statuses.{MultipleResponses, NoResponses}
-import com.github.phisgr.gatling.grpc.stream.StreamCall.Cancelled
+import com.github.phisgr.gatling.grpc.stream.StreamCall.{BothOpen, Cancelled, ClientStreamState, Completed}
 import com.github.phisgr.gatling.grpc.util.{GrpcStringBuilder, delayedParsing, toProtoString, wrongTypeMessage}
 import com.typesafe.scalalogging.StrictLogging
 import io.gatling.commons.stats.{KO, OK}
@@ -36,6 +36,11 @@ class ClientStreamCall[Req, Res](
   userId: Long,
   clock: Clock
 ) extends ClientStreamer[Req] with Cancellable with StrictLogging {
+  def state: ClientStreamState = if (callCompleted) {
+    Completed(grpcStatus, trailers)
+  } else {
+    BothOpen
+  }
 
   private implicit def reqTag: ClassTag[Req] = ClassTag(reqClass)
 

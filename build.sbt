@@ -4,7 +4,7 @@ val commonSettings = Seq(
   crossPaths := false,
 )
 
-val gatlingVersion = "3.7.6"
+val gatlingVersion = "3.8.3"
 val gatlingCore = "io.gatling" % "gatling-core" % gatlingVersion
 
 val publishSettings = {
@@ -25,7 +25,7 @@ lazy val root = (project in file("."))
   .settings(publishSettings: _*)
   .settings(
     name := "gatling-grpc",
-    version := "0.13.0",
+    version := "0.14.0-SNAPSHOT",
     inConfig(Test)(sbtprotoc.ProtocPlugin.protobufConfigSettings),
     Test / PB.targets := Seq(
       scalapb.gen() -> (Test / sourceManaged).value,

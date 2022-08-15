@@ -1,8 +1,5 @@
 package com.github.phisgr.example
 
-import java.util.UUID
-import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
-
 import ch.qos.logback.classic.Level
 import com.github.phisgr.example.chat._
 import com.github.phisgr.example.util.{ErrorResponseKey, TokenHeaderKey, tuneLogging}
@@ -18,6 +15,8 @@ import io.gatling.core.check.Matcher
 import io.gatling.core.session.Expression
 import io.grpc.{CallOptions, Status}
 
+import java.util.UUID
+import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
 import scala.concurrent.duration._
 
 class StreamingExample extends Simulation {
@@ -140,6 +139,12 @@ class StreamingExample extends Simulation {
         )
     }
     .exec(complete)
+    .doIf(chatCall.status.isHalfClosed) {
+      exec { session =>
+        println("Confirmed to have half closed.")
+        session
+      }
+    }
     .exec(chatCall.copy(requestName = "Send after complete").send(ChatMessage.defaultInstance))
     .exec(complete)
     .exec(chatCall.copy(requestName = "Wait for end.").reconciliate(waitFor = StreamEnd))
