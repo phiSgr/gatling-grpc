@@ -11,7 +11,7 @@ import io.gatling.commons.validation.Validation
 import io.gatling.core.session.{Expression, Session}
 import org.openjdk.jmh.annotations.{Benchmark, Fork, OutputTimeUnit}
 
-// JVM args from io.gatling.sbt.utils.PropertyUtils.DefaultJvmArgs
+// JVM args from io.gatling.plugin.GatlingConstants.DEFAULT_JVM_OPTIONS_GATLING
 @Fork(jvmArgsAppend = Array("-XX:MaxInlineLevel=20", "-XX:MaxTrivialSize=12"))
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 class TestUpdateExpr {
