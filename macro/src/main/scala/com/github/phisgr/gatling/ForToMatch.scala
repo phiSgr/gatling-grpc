@@ -23,10 +23,19 @@ object ForToMatch {
     tree match {
       case Apply(TypeApply(Select(v, TermName("flatMap")), _), List(Function(List(ValDef(_, name, _, _)), body))) =>
         matchValidation(v, name, toMatch(c)(removeEmptyMatch(body, name)))
-      case Apply(TypeApply(Select(v, TermName("map")), _), List(Function(List(ValDef(_, name, tpt, _)), body))) =>
+      case Apply(TypeApply(Select(v, TermName("map")), List(resultT)), List(Function(List(ValDef(_, name, tpt, _)), body))) =>
         removeEmptyMatch(body, name) match {
           case Literal(Constant(())) if tpt.tpe =:= definitions.UnitTpe => v
-          case _ => matchValidation(v, name, q"io.gatling.commons.validation.Success { $body }")
+          case cleanedBody =>
+            val successBody = if (resultT.tpe =:= definitions.UnitTpe) {
+              q"""{
+                 $cleanedBody
+                 io.gatling.commons.validation.Validation.unit
+              }"""
+            } else {
+              q"io.gatling.commons.validation.Success { $cleanedBody }"
+            }
+            matchValidation(v, name, successBody)
         }
       case tree =>
         c.warning(c.enclosingPosition, s"Early stopping with ${tree.getClass}:\n$tree")
