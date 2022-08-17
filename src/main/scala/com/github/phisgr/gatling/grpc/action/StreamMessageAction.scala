@@ -15,17 +15,11 @@ abstract class StreamMessageAction(
   ctx: ScenarioContext,
   override val next: Action,
   baseName: String,
-  val direction: String
+  override val direction: String
 ) extends RequestAction
   with ExitableAction
-  with NameGen {
-  def callFetchErrorMessage: String = s"Couldn't fetch open $direction stream"
-
-  final def fetchCall[Call: ClassTag](streamName: String, session: Session): Validation[Call] =
-    session(streamName)
-      .validate[Call]
-      .mapFailure(m => s"$callFetchErrorMessage: $m")
-
+  with NameGen
+  with StreamCallAccess {
   override val statsEngine: StatsEngine = ctx.coreComponents.statsEngine
   override val clock: Clock = ctx.coreComponents.clock
 

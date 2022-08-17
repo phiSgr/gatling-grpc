@@ -77,4 +77,10 @@ trait GrpcDsl {
    * Add the stream end event to the report only when an error occurred.
    */
   def ErrorOnly: StreamCall.StreamEndLog = StreamCall.ErrorOnly
+
+  def BothOpen: StreamCall.BidiStreamState = StreamCall.BothOpen
+
+  def Receiving: StreamCall.ServerStreamState = StreamCall.Receiving
+
+  type Completed = StreamCall.Completed
 }

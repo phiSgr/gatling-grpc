@@ -2,7 +2,6 @@ package com.github.phisgr.example
 
 import java.util.UUID
 import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
-
 import ch.qos.logback.classic.Level
 import com.github.phisgr.example.chat._
 import com.github.phisgr.example.util.{ErrorResponseKey, TokenHeaderKey, tuneLogging}
@@ -12,7 +11,7 @@ import com.github.phisgr.gatling.grpc.protocol.GrpcProtocol
 import com.github.phisgr.gatling.grpc.stream.TimestampExtractor
 import com.github.phisgr.gatling.pb._
 import com.google.protobuf.empty.Empty
-import io.gatling.commons.validation.{Failure, Validation}
+import io.gatling.commons.validation.{Failure, Success, Validation}
 import io.gatling.core.Predef._
 import io.gatling.core.check.Matcher
 import io.gatling.core.session.Expression
@@ -96,7 +95,11 @@ class StreamingExample extends Simulation {
           session
         }
     }
+    .exec(session => listenCall.state(session)
+      .flatMap(state => if (state == Receiving) Success(session) else Failure(s"wrong state before close: $state!")))
     .exec(listenCall.cancelStream)
+    .exec(session => listenCall.state(session)
+      .flatMap(state => if (state.isInstanceOf[Completed]) Success(session) else Failure(s"wrong state before close: $state!")))
 
   val chatter = scenario("Chatter")
     .exec(_.set("username", UUID.randomUUID().toString))
@@ -141,8 +144,12 @@ class StreamingExample extends Simulation {
     }
     .exec(complete)
     .exec(chatCall.copy(requestName = "Send after complete").send(ChatMessage.defaultInstance))
+    .exec(session => chatCall.state(session)
+      .flatMap(state => if (state == BothOpen) Success(session) else Failure(s"wrong state before close: $state!")))
     .exec(complete)
     .exec(chatCall.copy(requestName = "Wait for end.").reconciliate(waitFor = StreamEnd))
+    .exec(session => chatCall.state(session)
+      .flatMap(state => if (state.isInstanceOf[Completed]) Success(session) else Failure(s"wrong state after close: $state!")))
     .exec { session =>
       require(!session.attributes.contains(chatCall.streamName))
       session

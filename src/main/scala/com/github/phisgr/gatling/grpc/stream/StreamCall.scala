@@ -33,7 +33,7 @@ abstract class StreamCall[Req, Res, State >: ServerStreamState](
   logWhen: StreamEndLog
 ) extends StrictLogging with Cancellable {
 
-  protected var state: State = initState
+  var state: State = initState
   protected var callStartTime: Long = _
 
   logger.debug(s"Opening stream '$streamName': Scenario '${streamSession.scenario}', UserId #${streamSession.userId}")

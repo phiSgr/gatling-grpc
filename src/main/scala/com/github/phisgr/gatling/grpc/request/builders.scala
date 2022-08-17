@@ -1,7 +1,8 @@
 package com.github.phisgr.gatling.grpc.request
 
 import com.github.phisgr.gatling.grpc.action._
-import com.github.phisgr.gatling.grpc.stream.StreamCall.{NoWait, WaitType}
+import com.github.phisgr.gatling.grpc.stream.{BidiStreamCall, ServerStreamCall}
+import com.github.phisgr.gatling.grpc.stream.StreamCall.{BidiStreamState, NoWait, ServerStreamState, WaitType}
 import io.gatling.core.session.Expression
 import io.grpc.MethodDescriptor
 
@@ -28,10 +29,9 @@ class Unary[Req, Res] private[gatling](requestName: Expression[String], method: 
     GrpcCallActionBuilder(requestName, method, req)
 }
 
-sealed abstract class ListeningStream private[gatling] {
+sealed abstract class ListeningStream private[gatling] extends StreamCallAccess  {
   val requestName: Expression[String]
   val streamName: String
-  def direction: String
 
   def cancelStream = new StreamCancelBuilder(requestName, streamName, direction)
   def reconciliate(waitFor: WaitType = NoWait) =
@@ -43,9 +43,11 @@ sealed abstract class ListeningStream private[gatling] {
 
 case class ServerStream private[gatling](
   requestName: Expression[String],
-  streamName: String
+  override val streamName: String
 ) extends ListeningStream {
   override def direction: String = "server"
+
+  def state: Expression[ServerStreamState] = session => fetchCall[ServerStreamCall[_, _]](streamName, session).map(_.state)
 
   def start[Req, Res](method: MethodDescriptor[Req, Res])(req: Expression[Req]): ServerStreamStartActionBuilder[Req, Res] = {
     assert(method.getType == MethodDescriptor.MethodType.SERVER_STREAMING)
@@ -55,7 +57,7 @@ case class ServerStream private[gatling](
 
 case class BidiStream private[gatling](
   requestName: Expression[String],
-  streamName: String
+  override val streamName: String
 ) extends ListeningStream {
   override def direction: String = "bidi"
 
@@ -67,6 +69,7 @@ case class BidiStream private[gatling](
   def send[Req](req: Expression[Req]) = new StreamSendBuilder(requestName, streamName, req, direction = direction)
   def complete(waitFor: WaitType = NoWait) = new StreamCompleteBuilder(requestName, streamName, waitFor)
 
+  def state: Expression[BidiStreamState] = session => fetchCall[BidiStreamCall[_, _]](streamName, session).map(_.state)
   // Keep the nice looking no-parenthesis call syntax
   def complete: StreamCompleteBuilder = complete()
 }
