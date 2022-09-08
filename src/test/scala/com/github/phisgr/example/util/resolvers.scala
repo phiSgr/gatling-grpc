@@ -1,8 +1,8 @@
 package com.github.phisgr.example.util
 
-import java.net.{InetSocketAddress, URI}
 import io.grpc.{Attributes, EquivalentAddressGroup, NameResolver, NameResolverProvider}
 
+import java.net.{InetSocketAddress, URI}
 import scala.jdk.CollectionConverters._
 
 object ClientSideLoadBalancingResolverProvider extends NameResolverProvider {

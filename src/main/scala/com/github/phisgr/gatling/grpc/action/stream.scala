@@ -1,5 +1,6 @@
 package com.github.phisgr.gatling.grpc.action
 
+import com.github.phisgr.gatling.generic.SessionCombiner
 import com.github.phisgr.gatling.grpc.check.GrpcResponse.GrpcStreamEnd
 import com.github.phisgr.gatling.grpc.check.{StatusExtract, StreamCheck}
 import com.github.phisgr.gatling.grpc.request.{Call, CallDefinition}
@@ -29,6 +30,9 @@ trait StreamStartBuilder[Self, Req, Res] extends CallDefinition[Self, Req, Res] 
     endCheck(endChecks.map(_.checkIf(condition)): _*)
 
   def streamEndLog(logWhen: StreamEndLog): Self
+
+  def timestampExtractor(extractor: TimestampExtractor[Res]): Self
+  def sessionCombiner(sessionCombiner: SessionCombiner): Self
 }
 
 abstract class StreamStartAction[Req, Res](

@@ -33,9 +33,9 @@ case class BidiStreamStartActionBuilder[Req: ClassTag, Res](
   override def build(ctx: ScenarioContext, next: Action): Action =
     new BidiStreamStartAction(this, ctx, next)
 
-  def timestampExtractor(extractor: TimestampExtractor[Res]): BidiStreamStartActionBuilder[Req, Res] =
+  override def timestampExtractor(extractor: TimestampExtractor[Res]): BidiStreamStartActionBuilder[Req, Res] =
     copy(_timestampExtractor = extractor)
-  def sessionCombiner(sessionCombiner: SessionCombiner): BidiStreamStartActionBuilder[Req, Res] =
+  override def sessionCombiner(sessionCombiner: SessionCombiner): BidiStreamStartActionBuilder[Req, Res] =
     copy(_sessionCombiner = sessionCombiner)
 
   override private[gatling] def withCallAttributes(callAttributes: CallAttributes): BidiStreamStartActionBuilder[Req, Res] =

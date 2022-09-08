@@ -2,8 +2,8 @@ package com.github.phisgr.gatling.grpc.check
 
 import com.github.phisgr.gatling.generic.check.ResponseExtract
 import com.github.phisgr.gatling.grpc.check.GrpcResponse.GrpcStreamEnd
-import io.gatling.core.check.{CheckBuilder, CheckMaterializer}
 import io.gatling.core.check.CheckBuilder.{Find, Validate}
+import io.gatling.core.check.{CheckBuilder, CheckMaterializer}
 import io.grpc.{Metadata, Status}
 
 trait StreamingCheckSupport {

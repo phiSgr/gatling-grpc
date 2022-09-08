@@ -1,7 +1,5 @@
 package com.github.phisgr.gatling.pb.bench
 
-import java.util.concurrent.TimeUnit
-
 import com.github.phisgr.gatling.forToMatch
 import com.github.phisgr.gatling.grpc.Predef._
 import com.github.phisgr.gatling.javapb._
@@ -10,6 +8,8 @@ import com.github.phisgr.gatling.pb.test._
 import io.gatling.commons.validation.Validation
 import io.gatling.core.session.{Expression, Session}
 import org.openjdk.jmh.annotations.{Benchmark, Fork, OutputTimeUnit}
+
+import java.util.concurrent.TimeUnit
 
 // JVM args from io.gatling.plugin.GatlingConstants.DEFAULT_JVM_OPTIONS_GATLING
 @Fork(jvmArgsAppend = Array("-XX:MaxInlineLevel=20", "-XX:MaxTrivialSize=12"))

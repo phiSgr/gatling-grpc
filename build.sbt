@@ -1,3 +1,7 @@
+// the enterprisePackage task is confused
+ThisBuild / Gatling / publishArtifact := false
+ThisBuild / GatlingIt / publishArtifact := false
+
 val commonSettings = Seq(
   organization := "com.github.phisgr",
   scalaVersion := "2.13.8",
@@ -18,14 +22,13 @@ val publishSettings = {
   )
 }
 
-
 lazy val root = (project in file("."))
   .enablePlugins(GatlingPlugin)
   .settings(commonSettings: _*)
   .settings(publishSettings: _*)
   .settings(
     name := "gatling-grpc",
-    version := "0.14.0-SNAPSHOT",
+    version := "0.14.0",
     inConfig(Test)(sbtprotoc.ProtocPlugin.protobufConfigSettings),
     Test / PB.targets := Seq(
       scalapb.gen() -> (Test / sourceManaged).value,
@@ -43,7 +46,7 @@ lazy val root = (project in file("."))
       "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf",
       "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion,
       gatlingCore,
-      "com.github.phisgr" % "gatling-ext" % "0.3.0",
+      "com.github.phisgr" % "gatling-ext" % "0.4.0",
       "io.gatling.highcharts" % "gatling-charts-highcharts" % gatlingVersion % "test",
       "io.gatling" % "gatling-test-framework" % gatlingVersion % "test",
       "org.scalatest" %% "scalatest" % "3.2.12" % "test",
@@ -64,8 +67,8 @@ lazy val macroSub = (project in file("macro"))
   )
 
 // Usually the two update together (for specifying IntelliJ compatibility)
-val gatlingJavaPbVersion = "1.2.0"
-val gatlingJavaPbExtVersion = "1.2.0"
+val gatlingJavaPbVersion = "1.3.0"
+val gatlingJavaPbExtVersion = gatlingJavaPbVersion
 lazy val javaPb = (project in file("java-pb"))
   .settings(commonSettings: _*)
   .settings(publishSettings: _*)
@@ -73,7 +76,7 @@ lazy val javaPb = (project in file("java-pb"))
     name := "gatling-javapb",
     version := gatlingJavaPbVersion,
     libraryDependencies ++= Seq(
-      "com.google.protobuf" % "protobuf-java" % "3.20.1",
+      "com.google.protobuf" % "protobuf-java" % "3.21.6",
       gatlingCore,
     ),
     scalacOptions ++= Seq(
@@ -90,10 +93,10 @@ lazy val javaPbIjExt = (project in file("java-pb-intellij"))
     name := "gatling-javapb-ijext",
     ThisBuild / intellijPluginName := "gatling-javapb-ijext",
     // https://www.jetbrains.com/idea/download/other.html
-    ThisBuild / intellijBuild := "221.5591.52",
+    ThisBuild / intellijBuild := "222.4167.29",
     version := gatlingJavaPbExtVersion,
     // https://plugins.jetbrains.com/plugin/1347-scala/versions/stable
-    intellijPlugins += "org.intellij.scala:2022.1.14".toPlugin,
+    intellijPlugins += "org.intellij.scala:2022.2.13".toPlugin,
   )
   .enablePlugins(SbtIdeaPlugin)
 

@@ -12,7 +12,7 @@ import com.google.protobuf.empty.Empty
 import io.gatling.commons.validation.{Failure, Validation}
 import io.gatling.core.Predef._
 import io.gatling.core.check.Matcher
-import io.gatling.core.session.Expression
+import io.gatling.core.session.{Expression, ExpressionSuccessWrapper}
 import io.grpc.{CallOptions, Status}
 
 import java.util.UUID
@@ -38,9 +38,9 @@ class StreamingExample extends Simulation {
   val timeExpression: Expression[Long] = { _ => System.currentTimeMillis() }
 
   val listenCall = grpc("Listen")
-    .serverStream(streamName = "listener")
+    .serverStream(ChatServiceGrpc.METHOD_LISTEN, streamName = "listener")
   val chatCall = grpc("Chat")
-    .bidiStream(streamName = "chatter")
+    .bidiStream(ChatServiceGrpc.METHOD_CHAT, streamName = "chatter")
   val complete = chatCall.copy(requestName = "Complete").complete
 
   val grpcConf = grpc(managedChannelBuilder(target = "localhost:8080").usePlaintext())
@@ -49,7 +49,7 @@ class StreamingExample extends Simulation {
   val listener = scenario("Listener")
     .exec(
       listenCall
-        .start(ChatServiceGrpc.METHOD_LISTEN)(Empty.defaultInstance)
+        .start(Empty.defaultInstance)
         .timestampExtractor { (session, message, _) =>
           if (session.userId < 20) {
             // Let's see how Gatling handles negative response times
@@ -78,7 +78,7 @@ class StreamingExample extends Simulation {
         .exec { session =>
           val diff = System.currentTimeMillis() - session.attributes("prevTime").asInstanceOf[Long]
 
-          if (session.attributes.contains(listenCall.streamName)) {
+          if (session.contains(listenCall.streamName)) {
             require(
               diff <= 4,
               "This hook should be immediately run after receiving, " +
@@ -100,7 +100,7 @@ class StreamingExample extends Simulation {
   val chatter = scenario("Chatter")
     .exec(_.set("username", UUID.randomUUID().toString))
     .exec(
-      chatCall.connect(ChatServiceGrpc.METHOD_CHAT)
+      chatCall.connect
         .endCheckIf((res, _) => !res.status.isOk)(trailer(ErrorResponseKey).notExists)
         .endCheck(statusCode is Status.Code.OK)
     )
@@ -108,8 +108,8 @@ class StreamingExample extends Simulation {
       // for code coverage only
       // not used at all because of duplicated stream name
       grpc("Already Exists")
-        .bidiStream(streamName = "chatter")
-        .connect(ChatServiceGrpc.METHOD_CHAT)
+        .bidiStream(ChatServiceGrpc.METHOD_CHAT, streamName = "chatter")
+        .connect
         .extract(_.time.some)(_ gt timeExpression)
         .callOptions(CallOptions.DEFAULT.withDeadlineAfter(10, TimeUnit.HOURS))
         .timestampExtractor(TimestampExtractor.Ignore)
@@ -117,14 +117,14 @@ class StreamingExample extends Simulation {
         .streamEndLog(logWhen = Never)
     )
     .exec(
-      grpc("Wrong Message")
-        .bidiStream(streamName = "chatter")
-        .send(Empty.defaultInstance)
+      chatCall.copy(requestName = "Wrong Message")
+        // it's now hard to send a wrong typed message by mistake
+        .send(Empty.defaultInstance.expressionSuccess.asInstanceOf[Expression[ChatMessage]])
     )
     .exec(
-      grpc("Wrong Name")
-        .bidiStream(streamName = "Chatter")
-        .send(Empty.defaultInstance)
+      grpc("Wrong Name") // chatCall.streamName is lower case
+        .bidiStream(ChatServiceGrpc.METHOD_CHAT, streamName = "Chatter")
+        .send(ChatMessage.defaultInstance)
     )
     .during(sendMessageDuration) {
       pause(500.millis, maxSendDelay)
@@ -149,7 +149,7 @@ class StreamingExample extends Simulation {
     .exec(complete)
     .exec(chatCall.copy(requestName = "Wait for end.").reconciliate(waitFor = StreamEnd))
     .exec { session =>
-      require(!session.attributes.contains(chatCall.streamName))
+      require(!session.contains(chatCall.streamName))
       session
     }
 
@@ -168,12 +168,12 @@ class StreamingExample extends Simulation {
     .exec(
       listenCall
         .copy(requestName = "Cannot build")
-        .start(ChatServiceGrpc.METHOD_LISTEN)(Empty.defaultInstance)
+        .start(Empty.defaultInstance)
         .header(TokenHeaderKey)($("whatever"))
     )
     .exec(
       chatCall.copy("Fail")
-        .connect(ChatServiceGrpc.METHOD_CHAT)
+        .connect
         .timestampExtractor { (_, message, _) =>
           if (ThreadLocalRandom.current().nextBoolean()) message.time - 100 else throw new IllegalStateException()
         }

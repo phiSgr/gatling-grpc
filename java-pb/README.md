@@ -20,7 +20,7 @@ This is not included in the Gatling-gRPC library to avoid confusion.
 Assuming you're using
 [Gatling with Gradle](https://gatling.io/docs/current/extensions/gradle_plugin/),
 add this line to the `dependencies`.  
-`gatling 'com.github.phisgr:gatling-javapb:1.2.0'`
+`gatling 'com.github.phisgr:gatling-javapb:1.3.0'`
 
 Below is copied from
 [the unit tests](./src/test/scala/com/github/phisgr/gatling/javapb/JavaPbExprSpec.scala).

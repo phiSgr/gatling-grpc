@@ -1,10 +1,9 @@
 package com.github.phisgr.gatling.grpc.protocol
 
-import java.io.{ByteArrayInputStream, InputStream}
-
 import io.grpc.KnownLength
 import io.grpc.MethodDescriptor.Marshaller
 
+import java.io.{ByteArrayInputStream, InputStream}
 import scala.reflect.io.Streamable
 
 private[gatling] object EmptyMarshaller extends Marshaller[Unit] {

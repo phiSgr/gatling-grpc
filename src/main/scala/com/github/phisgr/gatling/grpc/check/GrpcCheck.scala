@@ -1,12 +1,12 @@
 package com.github.phisgr.gatling.grpc.check
 
-import java.util.{Map => JMap}
 import com.github.phisgr.gatling.grpc.check.GrpcCheck.{All, Scope}
 import com.softwaremill.quicklens._
 import io.gatling.commons.validation.Validation
 import io.gatling.core.check.{Check, CheckResult}
 import io.gatling.core.session.{Expression, Session}
 
+import java.util.{Map => JMap}
 import scala.annotation.unchecked.uncheckedVariance
 
 case class GrpcCheck[-T](
