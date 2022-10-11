@@ -127,15 +127,15 @@ class GrpcExample extends Simulation {
         .rpc(ChatServiceGrpc.METHOD_GREET)
         .payload(greetPayload)
         .extractIf(
-          _.userId == 50)( // only 1 error
+          _.userId == 50)( // only 1 error here
           _.data.split(' ')(10).some)( // This will crash, see _.find(10) above
           _.exists
         )
         .extractIf { (res, session) =>
-          session.userId == 51 && // only 1 failure
+          session.userId == 51 && // only 1 error here
             res.validation.toOption.get.data.startsWith("Server") // always true
         }(
-          _.data.split(' ')(10).some)( // This will crash, see _.find(10) above
+          _.data.split(' ')(10).some)(
           _.exists
         )
     )

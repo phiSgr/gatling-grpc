@@ -3,6 +3,7 @@ package com.github.phisgr.example
 import com.github.phisgr.example.chat.{ChatMessage, ChatServiceGrpc}
 import com.github.phisgr.gatling.grpc.Predef._
 import io.gatling.core.Predef._
+import io.gatling.core.session.{Expression, ExpressionSuccessWrapper}
 import io.grpc.{CallOptions, Status}
 
 import scala.concurrent.duration._
@@ -13,14 +14,14 @@ class ClientStreamingExample extends Simulation {
   val grpcConf = grpc(managedChannelBuilder(target = "localhost:8080").usePlaintext())
     .shareChannel
   val clientStream = grpc("Speak")
-    .clientStream("call")
+    .clientStream(ChatServiceGrpc.METHOD_BLACK_HOLE, "call")
 
   val send = clientStream.send(ChatMessage(data = "I'm bored"))
   val repeatSendCounter = "repeatSendCounter"
 
   val speaker = scenario("Speaker")
     .exec(
-      clientStream.connect(ChatServiceGrpc.METHOD_BLACK_HOLE)
+      clientStream.connect
         .extract(_.some)(_ lte 100)
     )
     .repeat(_.userId.toInt, repeatSendCounter) {
@@ -35,10 +36,14 @@ class ClientStreamingExample extends Simulation {
       }
     }
     .exec(send) // trigger debug log
-    .exec(clientStream.copy(requestName = "Wrong Type").send[String]("wrong type"))
+    .exec(
+      clientStream.copy(requestName = "Wrong Type")
+        // it's now hard to send a wrong typed message by mistake
+        .send("wrong type".expressionSuccess.asInstanceOf[Expression[ChatMessage]])
+    )
     .exec(clientStream.completeAndWait)
     .exec(
-      clientStream.connect(ChatServiceGrpc.METHOD_BLACK_HOLE)
+      clientStream.connect
         .callOptions(CallOptions.DEFAULT.withDeadlineAfter(500, MILLISECONDS))
         // should be DEADLINE_EXCEEDED, but we want to trigger logging
         .check(statusCode is Status.Code.CANCELLED)

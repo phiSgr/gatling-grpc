@@ -2,8 +2,7 @@ package com.github.phisgr.gatling
 
 import com.google.protobuf.Message
 import io.gatling.commons.validation.{Failure, Success, Validation}
-import io.gatling.core.Predef.value2Expression
-import io.gatling.core.session.{Expression, Session}
+import io.gatling.core.session.{Expression, Session, StaticValueExpression}
 
 package object javapb {
   private type BuilderMutation[B] = (B, Session) => Failure // nullable
@@ -56,7 +55,7 @@ package object javapb {
   type BuilderOf[M <: Message] = {def build(): M}
 
   implicit def message2ExprUpdater[M <: Message, B <: Message.Builder with BuilderOf[M]](e: M)(implicit evidence: BuilderEvidence[M, B]): MessageExpressionUpdater[M, B] =
-    expr2exprUpdater(value2Expression(e))
+    expr2exprUpdater(StaticValueExpression(e))
 
   implicit def expr2exprUpdater[M <: Message, B <: Message.Builder with BuilderOf[M]](e: Expression[M])(implicit evidence: BuilderEvidence[M, B]): MessageExpressionUpdater[M, B] =
     new MessageExpressionUpdater[M, B](e, Nil)

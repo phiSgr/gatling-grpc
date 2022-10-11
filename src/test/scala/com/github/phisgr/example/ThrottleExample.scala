@@ -1,16 +1,15 @@
 package com.github.phisgr.example
 
-import java.util.concurrent.TimeUnit
-
 import com.github.phisgr.example.chat.{ChatServiceGrpc, GreetRequest, RegisterRequest}
 import com.github.phisgr.example.util.TokenHeaderKey
 import com.github.phisgr.gatling.grpc.Predef._
 import com.github.phisgr.gatling.pb._
-import io.grpc.CallOptions
-import io.grpc.Status.Code._
 import io.gatling.core.Predef._
 import io.gatling.core.session.Expression
+import io.grpc.CallOptions
+import io.grpc.Status.Code._
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
 
 class ThrottleExample extends Simulation {

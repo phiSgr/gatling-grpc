@@ -105,7 +105,7 @@ object TestServer extends StrictLogging {
       override def blackHole(responseObserver: StreamObserver[Int]): StreamObserver[ChatMessage] = {
         val start = System.currentTimeMillis()
         val maxTime = 1000
-        val endTime = start + 1000
+        val endTime = start + maxTime
 
         @volatile
         var count = 0

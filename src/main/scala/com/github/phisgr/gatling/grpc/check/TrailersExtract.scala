@@ -2,8 +2,8 @@ package com.github.phisgr.gatling.grpc.check
 
 import com.github.phisgr.gatling.grpc.check.GrpcResponse.GrpcStreamEnd
 import io.gatling.commons.validation.SuccessWrapper
-import io.gatling.core.check.{CheckMaterializer, CountCriterionExtractor, Extractor, FindAllCriterionExtractor, FindCriterionExtractor, Preparer}
 import io.gatling.core.check.CheckBuilder.MultipleFind
+import io.gatling.core.check.{CheckMaterializer, CountCriterionExtractor, Extractor, FindAllCriterionExtractor, FindCriterionExtractor, Preparer}
 import io.gatling.core.session.{Expression, ExpressionSuccessWrapper}
 import io.grpc.Metadata
 

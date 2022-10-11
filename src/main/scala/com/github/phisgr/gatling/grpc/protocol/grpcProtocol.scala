@@ -94,6 +94,8 @@ object GrpcProtocol extends StrictLogging {
         case _ => throw new IllegalStateException(
           s"ManagedChannel not found in attribute '$channelAttributeName' in session: $session. " +
             "If you are using `dynamicChannel`, you have to `.exec(dynamicProtocol.setChannel)`"
+          // or in Kotlin `+dynamicProtocol.setChannel { ...`
+          // or in Java `.exec(dynamicProtocol.setChannel(session -> { ...`
         )
       }
       channel.newCall(methodDescriptor, callOptions)
@@ -130,6 +132,14 @@ object GrpcProtocol extends StrictLogging {
 sealed trait GrpcProtocol extends Protocol {
   private[gatling] val overridingKey: GrpcProtocol.Key
 
+  /**
+   * By default, if nothing inspects the response body, the body is ignored.
+   * You may fail to detect invalid responses in your load test because of that.
+   *
+   * This option forces the parsing.
+   */
+  def forceParsing: GrpcProtocol
+
   def header[T](key: Metadata.Key[T], optional: Boolean = false)(value: Expression[T]): GrpcProtocol
 }
 
@@ -144,15 +154,9 @@ case class StaticGrpcProtocol(
 
   def shareChannel: StaticGrpcProtocol = copy(_shareChannel = true)
 
-  def disableWarmUp: StaticGrpcProtocol = copy(warmUp = None)
+  override def forceParsing: StaticGrpcProtocol = copy(lazyParsing = false)
 
-  /**
-   * By default, if nothing inspects the response body, the body is ignored.
-   * You may fail to detect invalid responses in your load test because of that.
-   *
-   * This option forces the parsing.
-   */
-  def forceParsing: StaticGrpcProtocol = copy(lazyParsing = false)
+  def disableWarmUp: StaticGrpcProtocol = copy(warmUp = None)
 
   def warmUpCall[T](method: MethodDescriptor[T, _], req: T): StaticGrpcProtocol =
     copy(warmUp = Some(WarmUp(method, req)))
@@ -194,8 +198,7 @@ case class DynamicGrpcProtocol(
 ) extends GrpcProtocol {
   import GrpcProtocol._
 
-  /** See [[StaticGrpcProtocol.forceParsing]] */
-  def forceParsing: DynamicGrpcProtocol = copy(lazyParsing = false)
+  override def forceParsing: DynamicGrpcProtocol = copy(lazyParsing = false)
 
   override private[gatling] val overridingKey: Key = new ProtocolKey[GrpcProtocol, GrpcComponent] {
     override def protocolClass: Class[Protocol] = classOf[DynamicGrpcProtocol].asInstanceOf[Class[Protocol]]

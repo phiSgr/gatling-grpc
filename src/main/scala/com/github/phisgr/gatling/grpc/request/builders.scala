@@ -13,14 +13,14 @@ case class Grpc private[gatling](requestName: Expression[String]) {
   def rpc[Req, Res](method: MethodDescriptor[Req, Res]): Unary[Req, Res] =
     new Unary(requestName, method)
 
-  def serverStream(streamName: String): ServerStream =
-    ServerStream(requestName, streamName)
+  def serverStream[Req, Res](method: MethodDescriptor[Req, Res], streamName: String): ServerStream[Req, Res] =
+    ServerStream(requestName, method, streamName)
 
-  def bidiStream(streamName: String): BidiStream =
-    BidiStream(requestName, streamName)
+  def bidiStream[Req: ClassTag, Res](method: MethodDescriptor[Req, Res], streamName: String): BidiStream[Req, Res] =
+    BidiStream(requestName, method, streamName)
 
-  def clientStream(streamName: String): ClientStream =
-    ClientStream(requestName, streamName)
+  def clientStream[Req: ClassTag, Res](method: MethodDescriptor[Req, Res], streamName: String): ClientStream[Req, Res] =
+    ClientStream(requestName, method, streamName)
 }
 
 class Unary[Req, Res] private[gatling](requestName: Expression[String], method: MethodDescriptor[Req, Res]) {
@@ -47,48 +47,53 @@ sealed abstract class ListeningStream[Status >: Completed, C <: StreamCall[_, _,
   }
 }
 
-case class ServerStream private[gatling](
+case class ServerStream[Req, Res] private[gatling](
   requestName: Expression[String],
+  method: MethodDescriptor[Req, Res],
   streamName: String
 ) extends ListeningStream[ServerStreamState, ServerStreamCall[_, _]] {
+  require(method.getType == MethodDescriptor.MethodType.SERVER_STREAMING)
+
   override def direction: String = "server"
 
-  def start[Req, Res](method: MethodDescriptor[Req, Res])(req: Expression[Req]): ServerStreamStartActionBuilder[Req, Res] = {
-    assert(method.getType == MethodDescriptor.MethodType.SERVER_STREAMING)
+  def start(req: Expression[Req]): ServerStreamStartActionBuilder[Req, Res] = {
     ServerStreamStartActionBuilder(requestName, streamName, method, req)
   }
 }
 
-case class BidiStream private[gatling](
+case class BidiStream[Req: ClassTag, Res] private[gatling](
   requestName: Expression[String],
+  method: MethodDescriptor[Req, Res],
   streamName: String
 ) extends ListeningStream[BidiStreamState, BidiStreamCall[_, _]] {
+  require(method.getType == MethodDescriptor.MethodType.BIDI_STREAMING)
+
   override def direction: String = "bidi"
 
-  def connect[Req: ClassTag, Res](method: MethodDescriptor[Req, Res]): BidiStreamStartActionBuilder[Req, Res] = {
-    assert(method.getType == MethodDescriptor.MethodType.BIDI_STREAMING)
+  def connect: BidiStreamStartActionBuilder[Req, Res] = {
     BidiStreamStartActionBuilder(requestName, streamName, method)
   }
 
-  def send[Req](req: Expression[Req]) = new StreamSendBuilder(requestName, streamName, req, direction = direction)
+  def send(req: Expression[Req]) = new StreamSendBuilder(requestName, streamName, req, direction = direction)
   def complete(waitFor: WaitType = NoWait) = new StreamCompleteBuilder(requestName, streamName, waitFor)
 
   // Keep the nice looking no-parenthesis call syntax
   def complete: StreamCompleteBuilder = complete()
 }
 
-case class ClientStream private[gatling](
+case class ClientStream[Req: ClassTag, Res] private[gatling](
   requestName: Expression[String],
+  method: MethodDescriptor[Req, Res],
   streamName: String
 ) {
+  require(method.getType == MethodDescriptor.MethodType.CLIENT_STREAMING)
   private def clientStreamDirection: String = "client"
 
-  def connect[Req: ClassTag, Res](method: MethodDescriptor[Req, Res]): ClientStreamStartActionBuilder[Req, Res] = {
-    assert(method.getType == MethodDescriptor.MethodType.CLIENT_STREAMING)
+  def connect: ClientStreamStartActionBuilder[Req, Res] = {
     ClientStreamStartActionBuilder(requestName, streamName, method)
   }
 
-  def send[Req](req: Expression[Req]) = new StreamSendBuilder(requestName, streamName, req, direction = clientStreamDirection)
+  def send(req: Expression[Req]) = new StreamSendBuilder(requestName, streamName, req, direction = clientStreamDirection)
   def cancelStream = new StreamCancelBuilder(requestName, streamName, direction = clientStreamDirection)
   /**
    * If server completes before client complete,

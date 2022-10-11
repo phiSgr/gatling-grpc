@@ -6,9 +6,9 @@ import com.github.phisgr.example.util.{ClientSideLoadBalancingResolverProvider, 
 import com.github.phisgr.gatling.grpc.Predef._
 import com.github.phisgr.gatling.grpc.action.GrpcCallAction
 import com.github.phisgr.gatling.pb._
-import io.grpc.NameResolverRegistry
 import io.gatling.core.Predef._
 import io.gatling.core.session.Expression
+import io.grpc.NameResolverRegistry
 
 class ResolverExample extends Simulation {
   ports.foreach(TestServer.startServer)

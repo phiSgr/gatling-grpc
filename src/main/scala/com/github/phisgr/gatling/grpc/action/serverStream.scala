@@ -31,9 +31,9 @@ case class ServerStreamStartActionBuilder[Req, Res](
   override def build(ctx: ScenarioContext, next: Action): Action =
     new ServerStreamStartAction(this, ctx, next)
 
-  def timestampExtractor(extractor: TimestampExtractor[Res]): ServerStreamStartActionBuilder[Req, Res] =
+  override def timestampExtractor(extractor: TimestampExtractor[Res]): ServerStreamStartActionBuilder[Req, Res] =
     copy(_timestampExtractor = extractor)
-  def sessionCombiner(sessionCombiner: SessionCombiner): ServerStreamStartActionBuilder[Req, Res] =
+  override def sessionCombiner(sessionCombiner: SessionCombiner): ServerStreamStartActionBuilder[Req, Res] =
     copy(_sessionCombiner = sessionCombiner)
 
   override private[gatling] def withCallAttributes(callAttributes: CallAttributes): ServerStreamStartActionBuilder[Req, Res] =

@@ -1,3 +1,15 @@
+#### 0.14.0
+
+Gatling 3.8.3.
+
+Allows accessing the status of streaming calls.
+
+Streaming method descriptors are moved earlier in the construction,
+provided at the same time as `streamName`.
+This change makes it harder to have type errors.
+
+Various changes to make Kotlin/Java access easier.
+
 #### 0.13.0
 
 Gatling 3.7.6.

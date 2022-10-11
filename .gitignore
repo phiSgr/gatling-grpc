@@ -44,6 +44,6 @@ build/
 
 !gradle-wrapper.jar
 
-/out
+out/
 
 /results

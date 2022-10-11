@@ -30,3 +30,5 @@ TestUpdateExpr.updateSimpleExpr:·gc.alloc.rate.norm                thrpt   50  
 TestUpdateExpr.updateSimpleExprJava                                thrpt   50  45678.602 ± 1618.755  ops/ms
 TestUpdateExpr.updateSimpleExprJava:·gc.alloc.rate.norm            thrpt   50     83.200 ±    3.200    B/op
 ```
+
+See also [benchmarks done for Kotlin support](../gatling-grpc-kt/src/jmh/README.md)

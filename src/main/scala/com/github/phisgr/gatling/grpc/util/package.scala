@@ -1,8 +1,5 @@
 package com.github.phisgr.gatling.grpc
 
-import java.io.ByteArrayInputStream
-import java.lang.{StringBuilder => JStringBuilder}
-
 import com.google.common.base.Charsets.US_ASCII
 import io.gatling.commons.util.StringHelper.Eol
 import io.gatling.commons.validation.Failure
@@ -10,6 +7,8 @@ import io.gatling.core.session.Session
 import io.grpc.MethodDescriptor.Marshaller
 import io.grpc.{InternalMetadata, Metadata, Status}
 
+import java.io.ByteArrayInputStream
+import java.lang.{StringBuilder => JStringBuilder}
 import scala.reflect.ClassTag
 
 package object util {
