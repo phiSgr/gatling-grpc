@@ -1,6 +1,7 @@
 package com.github.phisgr.gatling.grpc.protocol
 
 import com.github.phisgr.gatling.grpc.HeaderPair
+import com.github.phisgr.gatling.grpc.Reflections.generatePrivateAttribute
 import com.github.phisgr.gatling.grpc.action.{DisposeDynamicChannel, SetDynamicChannelBuilder}
 import com.typesafe.scalalogging.StrictLogging
 import io.gatling.commons.util.Throwables._
@@ -9,7 +10,7 @@ import io.gatling.core.action.Action
 import io.gatling.core.action.builder.ActionBuilder
 import io.gatling.core.config.GatlingConfiguration
 import io.gatling.core.protocol.{Protocol, ProtocolComponents, ProtocolKey}
-import io.gatling.core.session.{Expression, Session, SessionPrivateAttributes}
+import io.gatling.core.session.{Expression, Session}
 import io.gatling.core.structure.ScenarioContext
 import io.gatling.netty.util.Transports
 import io.grpc._
@@ -22,7 +23,7 @@ import scala.util.control.NonFatal
 case class WarmUp[T](method: MethodDescriptor[T, _], payload: T)
 
 object GrpcProtocol extends StrictLogging {
-  private[gatling] val DefaultChannelAttributeName: String = SessionPrivateAttributes.PrivateAttributePrefix + "grpc.channel"
+  private[gatling] val DefaultChannelAttributeName: String = generatePrivateAttribute("grpc.channel")
 
   private[gatling] def defaultWarmUp: WarmUp[Unit] = {
     val method = MethodDescriptor.newBuilder()

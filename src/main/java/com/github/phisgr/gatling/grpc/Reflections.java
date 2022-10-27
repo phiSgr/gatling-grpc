@@ -1,5 +1,6 @@
 package com.github.phisgr.gatling.grpc;
 
+import io.gatling.core.session.SessionPrivateAttributes;
 import io.grpc.ClientCall;
 import io.grpc.Metadata;
 import io.grpc.Status;
@@ -63,5 +64,13 @@ public class Reflections {
 
     public static byte[] value(Metadata metadata, int i) throws Throwable {
         return (byte[]) metadataValue.invokeExact(metadata, i);
+    }
+
+    /**
+     * Bypassing Scala's qualified private modifier with Java code.
+     * Not exactly a reflection, but close enough.
+     */
+    public static String generatePrivateAttribute(String base) {
+        return SessionPrivateAttributes.generatePrivateAttribute(base);
     }
 }
