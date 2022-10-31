@@ -135,7 +135,9 @@ class StreamingExample extends Simulation {
               _.data :~ "#{username} says hi!",
               _.time :~ timeExpression
             )
-          )
+          ).preSendAction { (clock, req, _) =>
+            println(s"Time difference is ${clock.nowMillis - req.time}ms.")
+          }
         )
     }
     .exec(complete)
@@ -174,8 +176,19 @@ class StreamingExample extends Simulation {
     .exec(
       chatCall.copy("Fail")
         .connect
-        .timestampExtractor { (_, message, _) =>
-          if (ThreadLocalRandom.current().nextBoolean()) message.time - 100 else throw new IllegalStateException()
+        .eventExtractor { (session, _, _, message, receiveTime, statsEngine, _, status, errorMessage) =>
+          if (ThreadLocalRandom.current().nextBoolean()) throw new IllegalStateException()
+
+          statsEngine.logResponse(
+            session.scenario,
+            session.groups,
+            requestName = "requestName is overridden",
+            startTimestamp = message.time - 100,
+            endTimestamp = receiveTime,
+            status = status,
+            responseCode = None,
+            message = errorMessage
+          )
         }
         .extract(_.data.some)(_ validate endsWithHi)
         .endCheck(statusCode is Status.Code.CANCELLED)

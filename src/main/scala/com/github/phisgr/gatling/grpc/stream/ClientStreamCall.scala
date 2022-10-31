@@ -4,7 +4,7 @@ import com.github.phisgr.gatling.generic.util.EventLoopHelper
 import com.github.phisgr.gatling.grpc.check.{GrpcCheck, GrpcResponse}
 import com.github.phisgr.gatling.grpc.protocol.Statuses.{MultipleResponses, NoResponses}
 import com.github.phisgr.gatling.grpc.stream.StreamCall.{BothOpen, Cancelled, ClientStreamState, Completed}
-import com.github.phisgr.gatling.grpc.util.{GrpcStringBuilder, delayedParsing, toProtoString, wrongTypeMessage}
+import com.github.phisgr.gatling.grpc.util.{GrpcStringBuilder, delayedParsing, statusCodeOption, toProtoString, wrongTypeMessage}
 import com.typesafe.scalalogging.StrictLogging
 import io.gatling.commons.stats.{KO, OK}
 import io.gatling.commons.util.Clock
@@ -141,7 +141,7 @@ class ClientStreamCall[Req, Res](
       startTimestamp = startTimestamp,
       endTimestamp = endTimestamp,
       status = status,
-      responseCode = Some(grpcStatus.getCode.toString),
+      responseCode = statusCodeOption(grpcStatus.getCode.value()),
       message = errorMessage
     )
     val newSession = withStatus.logGroupRequestTimings(startTimestamp = startTimestamp, endTimestamp = endTimestamp)

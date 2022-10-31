@@ -132,6 +132,8 @@ class KtStreamingSimulation : Simulation() {
                     data = "$username says hi!"
                     time = timeExpression.apply(session)
                     build()
+                }.preSendAction { clock, req, _ ->
+                    println("Time difference is ${clock.nowMillis() - req.time}ms.")
                 }
             }
             +complete
@@ -157,9 +159,21 @@ class KtStreamingSimulation : Simulation() {
             +chatCall
                 .withRequestName("Fail")
                 .connect()
-                .timestampExtractor { _, message, _ ->
-                    if (ThreadLocalRandom.current().nextBoolean()) message.time - 100
-                    else throw IllegalStateException()
+                .eventExtractor { session, _, _, message, receiveTime, statsEngine, _, status, errorMessage ->
+                    if (ThreadLocalRandom.current().nextBoolean()) throw IllegalStateException()
+
+                    // Exposing a Gatling's internal Scala class to Java/Kotlin is not ideal
+                    // but it's not used enough to be justify wrapper code
+                    statsEngine.logResponse(
+                        session.scenario(),
+                        session.groups(),
+                        "requestName is overridden",
+                        message.time - 100,
+                        receiveTime,
+                        status,
+                        scala.Option.empty(),
+                        errorMessage
+                    )
                 }
                 .check({
                     extract { it.data }

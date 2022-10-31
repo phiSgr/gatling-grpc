@@ -6,7 +6,7 @@ import com.github.phisgr.gatling.grpc.check.GrpcResponse.GrpcStreamEnd
 import com.github.phisgr.gatling.grpc.check.StreamCheck
 import com.github.phisgr.gatling.grpc.request.CallAttributes
 import com.github.phisgr.gatling.grpc.stream.StreamCall.{AlwaysLog, StreamEndLog, ensureNoStream}
-import com.github.phisgr.gatling.grpc.stream.{ServerStreamCall, TimestampExtractor}
+import com.github.phisgr.gatling.grpc.stream.{EventExtractor, ServerStreamCall, TimestampExtractor}
 import io.gatling.commons.util.Clock
 import io.gatling.commons.validation.Validation
 import io.gatling.core.action.Action
@@ -20,7 +20,7 @@ case class ServerStreamStartActionBuilder[Req, Res](
   private[gatling] val streamName: String,
   private[gatling] override val method: MethodDescriptor[Req, Res],
   private[gatling] val req: Expression[Req],
-  private[gatling] override val _timestampExtractor: TimestampExtractor[Res] = TimestampExtractor.Ignore,
+  private[gatling] override val extractor: EventExtractor[Res] = TimestampExtractor.Ignore,
   private[gatling] val _sessionCombiner: SessionCombiner = SessionCombiner.NoOp,
   private[gatling] override val callAttributes: CallAttributes = CallAttributes(),
   private[gatling] override val checks: List[StreamCheck[Res]] = Nil,
@@ -31,8 +31,8 @@ case class ServerStreamStartActionBuilder[Req, Res](
   override def build(ctx: ScenarioContext, next: Action): Action =
     new ServerStreamStartAction(this, ctx, next)
 
-  override def timestampExtractor(extractor: TimestampExtractor[Res]): ServerStreamStartActionBuilder[Req, Res] =
-    copy(_timestampExtractor = extractor)
+  override def eventExtractor(extractor: EventExtractor[Res]): ServerStreamStartActionBuilder[Req, Res] =
+    copy(extractor = extractor)
   override def sessionCombiner(sessionCombiner: SessionCombiner): ServerStreamStartActionBuilder[Req, Res] =
     copy(_sessionCombiner = sessionCombiner)
 
@@ -75,7 +75,7 @@ class ServerStreamStartAction[Req, Res](
         headers,
         resolvedPayload,
         ctx,
-        builder._timestampExtractor,
+        builder.extractor,
         builder._sessionCombiner,
         session,
         builder.checks,

@@ -13,10 +13,7 @@ import com.github.phisgr.gatling.grpc.stream.ClientStreamCall
 import com.github.phisgr.gatling.grpc.stream.ServerStreamCall
 import com.github.phisgr.gatling.grpc.stream.StreamCall
 import com.github.phisgr.gatling.kt.getOrThrow
-import com.github.phisgr.gatling.kt.grpc.action.BidiStreamStartActionBuilder
-import com.github.phisgr.gatling.kt.grpc.action.ClientStreamStartActionBuilder
-import com.github.phisgr.gatling.kt.grpc.action.GrpcCallActionBuilder
-import com.github.phisgr.gatling.kt.grpc.action.ServerStreamStartActionBuilder
+import com.github.phisgr.gatling.kt.grpc.action.*
 import com.github.phisgr.gatling.kt.internal.ActionBuilderWrapper
 import com.github.phisgr.gatling.kt.internal.elString
 import com.github.phisgr.gatling.kt.internal.toScalaF
@@ -162,7 +159,7 @@ class ServerStream<Req, Res>(
 inline fun <Req : Message, ReqBuilder : Message.Builder, Res> BidiStream<Req, Res>.send(
     crossinline newBuilder: () -> ReqBuilder,
     crossinline f: ReqBuilder.(Session) -> Req,
-): ActionBuilder =
+): StreamSendBuilder<Req> =
     send(fromSession(newBuilder, f))
 
 class BidiStream<Req, Res>(
@@ -180,15 +177,15 @@ class BidiStream<Req, Res>(
 
     @PublishedApi
     @JvmSynthetic
-    internal fun send(body: ExpressionS<Req>): ActionBuilder =
-        ActionBuilderWrapper(streamS.send(body))
+    internal fun send(body: ExpressionS<Req>): StreamSendBuilder<Req> =
+        StreamSendBuilder(streamS.send(body))
 
-    fun send(el: String): ActionBuilder = send(toExpression(el, clazz))
-    fun send(body: Req): ActionBuilder = send(toStaticValueExpression(body))
-    fun send(f: Function<Session, Req>): ActionBuilder = send(f.asScala())
+    fun send(el: String): StreamSendBuilder<Req> = send(toExpression(el, clazz))
+    fun send(body: Req): StreamSendBuilder<Req> = send(toStaticValueExpression(body))
+    fun send(f: Function<Session, Req>): StreamSendBuilder<Req> = send(f.asScala())
 
     @JvmSynthetic
-    inline fun send(crossinline f: (Session) -> Req): ActionBuilder =
+    inline fun send(crossinline f: (Session) -> Req): StreamSendBuilder<Req> =
         send(toScalaF { session: SessionS -> f(Session(session)) })
 
     fun complete(waitFor: WaitType = NO_WAIT): ActionBuilder =
@@ -204,7 +201,7 @@ class BidiStream<Req, Res>(
 inline fun <Req : Message, ReqBuilder : Message.Builder, Res> ClientStream<Req, Res>.send(
     crossinline newBuilder: () -> ReqBuilder,
     crossinline f: ReqBuilder.(Session) -> Req,
-): ActionBuilder =
+): StreamSendBuilder<Req> =
     send(fromSession(newBuilder, f))
 
 class ClientStream<Req, Res>(
@@ -222,12 +219,12 @@ class ClientStream<Req, Res>(
 
     @PublishedApi
     @JvmSynthetic
-    internal fun send(body: ExpressionS<Req>): ActionBuilder =
-        ActionBuilderWrapper(streamS.send(body))
+    internal fun send(body: ExpressionS<Req>): StreamSendBuilder<Req> =
+        StreamSendBuilder(streamS.send(body))
 
-    fun send(el: String): ActionBuilder = send(toExpression(el, clazz))
-    fun send(body: Req): ActionBuilder = send(toStaticValueExpression(body))
-    fun send(f: Function<Session, Req>): ActionBuilder = send(f.asScala())
+    fun send(el: String): StreamSendBuilder<Req> = send(toExpression(el, clazz))
+    fun send(body: Req): StreamSendBuilder<Req> = send(toStaticValueExpression(body))
+    fun send(f: Function<Session, Req>): StreamSendBuilder<Req> = send(f.asScala())
 
     @JvmSynthetic
     inline fun send(crossinline f: (Session) -> Req): ActionBuilder =

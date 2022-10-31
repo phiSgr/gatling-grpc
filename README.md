@@ -5,7 +5,7 @@ A [Gatling](http://gatling.io/) load test plugin for [gRPC](https://grpc.io/).
 ### Java/Kotlin API
 
 Since 3.7, Gatling adds Java API for the test to be written in Java or Kotlin.
-In Gatling-gRPC 0.14.0, [a binding](gatling-grpc-kt) is written in Kotlin for Java and Kotlin users.
+Since Gatling-gRPC 0.14.0, [a binding](gatling-grpc-kt) is written in Kotlin for Java and Kotlin users.
 
 ## Usage
 
@@ -25,7 +25,7 @@ along with the two required by Gatling.
 libraryDependencies ++= Seq(
   "io.gatling.highcharts" % "gatling-charts-highcharts" % gatlingVersion % "test",
   "io.gatling" % "gatling-test-framework" % gatlingVersion % "test",
-  "com.github.phisgr" % "gatling-grpc" % "0.14.0" % "test"
+  "com.github.phisgr" % "gatling-grpc" % "0.15.0" % "test"
 )
 enablePlugins(GatlingPlugin)
 ```

@@ -5,6 +5,7 @@ package com.github.phisgr.gatling.kt.grpc.action
 import com.github.phisgr.gatling.generic.SessionCombiner
 import com.github.phisgr.gatling.grpc.check.GrpcResponse
 import com.github.phisgr.gatling.grpc.check.StreamCheck
+import com.github.phisgr.gatling.grpc.stream.EventExtractor
 import com.github.phisgr.gatling.grpc.stream.TimestampExtractor
 import com.github.phisgr.gatling.kt.grpc.StreamEndLog
 import com.github.phisgr.gatling.kt.grpc.internal.GrpcStreamEnd
@@ -80,6 +81,13 @@ abstract class StreamStartBuilder<Self : StreamStartBuilder<Self, Req, Res, Wrap
 
     fun timestampExtractor(extractor: TimestampExtractor<Res>): Self =
         wrap(asScala().timestampExtractor(extractor))
+
+    /**
+     * This exposes the internal StatsEngine of Gatling.
+     * No wrapper class around them, as this is a niche, advanced API.
+     */
+    fun eventExtractor(extractor: EventExtractor<Res>): Self =
+        wrap(asScala().eventExtractor(extractor))
 
     fun sessionCombiner(sessionCombiner: SessionCombiner): Self =
         wrap(asScala().sessionCombiner(sessionCombiner))

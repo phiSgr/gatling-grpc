@@ -6,7 +6,7 @@ import com.github.phisgr.gatling.grpc.stream.StreamCall
 import com.github.phisgr.gatling.grpc.util.wrongTypeMessage
 import io.gatling.commons.NotNothing
 import io.gatling.commons.validation.Success
-import io.gatling.core.session.Expression
+import io.gatling.core.session.{Expression, Session}
 import io.gatling.core.session.el.ElMessages
 import io.grpc.{ManagedChannelBuilder => MCB}
 
@@ -27,6 +27,10 @@ trait GrpcDsl {
    * The virtual user has to go through
    * `exec(`[[com.github.phisgr.gatling.grpc.protocol.DynamicGrpcProtocol.setChannel]]`)`
    * before running a gRPC action with `.target(dynamicChannel)`
+   *
+   * @param channelAttributeName The key in the session for storing the channel.
+   *                             Start it with `"gatling."` to stop it from being removed by [[Session.reset]].
+   * @return a [[DynamicGrpcProtocol]]
    */
   def dynamicChannel(channelAttributeName: String): DynamicGrpcProtocol = DynamicGrpcProtocol(channelAttributeName)
 

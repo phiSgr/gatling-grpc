@@ -15,8 +15,8 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.phisgr:gatling-grpc:0.14.0")
-    implementation("io.gatling:gatling-core-java:3.8.3")
+    implementation("com.github.phisgr:gatling-grpc:0.15.0")
+    implementation("io.gatling:gatling-core-java:3.8.4")
     implementation("com.github.phisgr:gatling-javapb:1.3.0")
     implementation("javax.annotation:javax.annotation-api:1.3.2")
 }

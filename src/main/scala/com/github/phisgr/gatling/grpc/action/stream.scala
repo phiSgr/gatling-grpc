@@ -5,7 +5,7 @@ import com.github.phisgr.gatling.grpc.check.GrpcResponse.GrpcStreamEnd
 import com.github.phisgr.gatling.grpc.check.{StatusExtract, StreamCheck}
 import com.github.phisgr.gatling.grpc.request.{Call, CallDefinition}
 import com.github.phisgr.gatling.grpc.stream.StreamCall.StreamEndLog
-import com.github.phisgr.gatling.grpc.stream.TimestampExtractor
+import com.github.phisgr.gatling.grpc.stream.{EventExtractor, TimestampExtractor}
 import io.gatling.commons.validation.Validation
 import io.gatling.core.session.{Expression, Session}
 import io.gatling.core.structure.ScenarioContext
@@ -19,7 +19,7 @@ trait StreamStartBuilder[Self, Req, Res] extends CallDefinition[Self, Req, Res] 
   override type Check[T] = StreamCheck[T]
 
   private[gatling] val endChecks: List[StreamCheck[GrpcStreamEnd]]
-  private[gatling] val _timestampExtractor: TimestampExtractor[Res]
+  private[gatling] val extractor: EventExtractor[Res]
 
   def endCheck(value: StreamCheck[GrpcStreamEnd]*): Self
 
@@ -31,7 +31,9 @@ trait StreamStartBuilder[Self, Req, Res] extends CallDefinition[Self, Req, Res] 
 
   def streamEndLog(logWhen: StreamEndLog): Self
 
-  def timestampExtractor(extractor: TimestampExtractor[Res]): Self
+  def eventExtractor(extractor: EventExtractor[Res]): Self
+  def timestampExtractor(extractor: TimestampExtractor[Res]): Self =
+    eventExtractor(extractor)
   def sessionCombiner(sessionCombiner: SessionCombiner): Self
 }
 
@@ -46,7 +48,7 @@ abstract class StreamStartAction[Req, Res](
 
   override protected def needParsed: Boolean =
     builder.checks.nonEmpty ||
-      builder._timestampExtractor.ne(TimestampExtractor.Ignore) ||
+      builder.extractor.ne(TimestampExtractor.Ignore) ||
       // If trace is enabled, we always log the response. No need to delay parsing
       LoggerFactory.getLogger(callClass.getName).isTraceEnabled
 

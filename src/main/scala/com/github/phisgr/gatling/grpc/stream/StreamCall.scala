@@ -4,7 +4,7 @@ import com.github.phisgr.gatling.generic.SessionCombiner
 import com.github.phisgr.gatling.grpc.check.GrpcResponse.GrpcStreamEnd
 import com.github.phisgr.gatling.grpc.check.{GrpcResponse, StreamCheck}
 import com.github.phisgr.gatling.grpc.stream.StreamCall._
-import com.github.phisgr.gatling.grpc.util.{GrpcStringBuilder, toProtoString}
+import com.github.phisgr.gatling.grpc.util.{GrpcStringBuilder, statusCodeOption}
 import com.typesafe.scalalogging.StrictLogging
 import io.gatling.commons.stats.{KO, OK}
 import io.gatling.commons.util.StringHelper.Eol
@@ -25,7 +25,7 @@ abstract class StreamCall[Req, Res, State >: Completed](
   initState: State,
   protected var streamSession: Session,
   val call: ClientCall[Req, Any],
-  timestampExtractor: TimestampExtractor[Res],
+  eventExtractor: EventExtractor[Res],
   combine: SessionCombiner,
   checks: List[StreamCheck[Res]],
   endChecks: List[StreamCheck[GrpcStreamEnd]],
@@ -42,20 +42,40 @@ abstract class StreamCall[Req, Res, State >: Completed](
   private[gatling] def onRes(res: Any, receiveTime: Long): Unit = {
     // res is Unit if
     // 1. checks are empty &&
-    // 2. timestampExtractor does nothing &&
+    // 2. eventExtractor does nothing &&
     // 3. trace logging is off &&
     // 4. user does not force parsing
     val response = res.asInstanceOf[Res]
 
     call.request(1)
 
-    val extractedTime = try {
-      timestampExtractor.extractTimestamp(streamSession, response, callStartTime)
+    val (newSession, checkError) = Check.check(response, streamSession, checks, preparedCache = null)
+    streamSession = if (checkError.isEmpty) newSession else newSession.markAsFailed
+
+    val status = if (checkError.isEmpty) OK else KO
+    val errorMessage = checkError.map(_.message)
+
+    try {
+      eventExtractor.writeEvents(
+        session = streamSession,
+        streamStartTime = callStartTime,
+        requestName = requestName,
+        message = response,
+        receiveTime = receiveTime,
+        statsEngine = statsEngine,
+        logger = logger,
+        status = status,
+        errorMessage = errorMessage
+      )
     } catch {
       case NonFatal(e) =>
-        val message = s"Timestamp extraction crashed ${e.detailedMessage}"
+        val message = if (eventExtractor.isInstanceOf[TimestampExtractor[_]]) {
+          "Timestamp extraction crashed"
+        } else {
+          "Event extraction crashed"
+        }
 
-        logger.warn(message)
+        logger.warn(message, e)
         statsEngine.logResponse(
           streamSession.scenario,
           streamSession.groups,
@@ -64,33 +84,11 @@ abstract class StreamCall[Req, Res, State >: Completed](
           endTimestamp = receiveTime,
           status = KO,
           responseCode = None,
-          message = Some(message)
+          message = Some(s"$message ${e.detailedMessage}")
         )
         streamSession = streamSession.markAsFailed
         return
     }
-
-    val (newSession, checkError) = Check.check(response, streamSession, checks, preparedCache = null)
-    streamSession = if (checkError.isEmpty) newSession else newSession.markAsFailed
-
-    if (extractedTime == TimestampExtractor.IgnoreMessage) {
-      logger.trace(s"Ignored message\n${toProtoString(response)}")
-      return
-    }
-
-    val status = if (checkError.isEmpty) OK else KO
-    val errorMessage = checkError.map(_.message)
-
-    statsEngine.logResponse(
-      streamSession.scenario,
-      streamSession.groups,
-      requestName = requestName,
-      startTimestamp = extractedTime,
-      endTimestamp = receiveTime,
-      status = status,
-      responseCode = None,
-      message = errorMessage
-    )
 
     def dump = {
       StringBuilderPool.DEFAULT
@@ -166,7 +164,7 @@ abstract class StreamCall[Req, Res, State >: Completed](
         startTimestamp = callStartTime,
         endTimestamp = completeTimeMillis,
         status = status,
-        responseCode = Some(grpcStatus.getCode.toString),
+        responseCode = statusCodeOption(grpcStatus.getCode.value()),
         message = errorMessage
       )
     }

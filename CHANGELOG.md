@@ -1,3 +1,16 @@
+#### 0.15.0
+
+Gatling 3.8.4.
+
+Advanced API allowing multiple event types in a stream.
+This is backward compatible except for a minor behaviour change.\
+Returning `TimestampExtractor.IgnoreMessage` no longer skips over
+the trace/debug logging and
+the waiting for next message (i.e. `.reconciliate(waitFor = NextMessage)`).
+
+Adding `preSendAction` for performing a side effect before sending a client/bidi stream message.
+This is useful for storing the send time of the message.
+
 #### 0.14.0
 
 Gatling 3.8.3.

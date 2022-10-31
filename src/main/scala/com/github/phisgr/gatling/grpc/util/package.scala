@@ -12,6 +12,16 @@ import java.lang.{StringBuilder => JStringBuilder}
 import scala.reflect.ClassTag
 
 package object util {
+  // pre-allocates the `Some` wrappers
+  val statusCodeOption: Array[Some[String]] = {
+    val codes = Status.Code.values()
+    val res = new Array[Some[String]](codes.size)
+    codes.foreach { code =>
+      res(code.value()) = Some(code.toString)
+    }
+    res
+  }
+
   def toProtoString(message: Any): String = {
     message match {
       case scalaPbObject: scalapb.GeneratedMessage =>

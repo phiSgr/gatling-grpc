@@ -7,7 +7,7 @@ import com.github.phisgr.gatling.grpc.check.{GrpcCheck, GrpcResponse, StatusExtr
 import com.github.phisgr.gatling.grpc.protocol.ByteArrayMarshaller
 import com.github.phisgr.gatling.grpc.protocol.Statuses.{MultipleResponses, NoResponses}
 import com.github.phisgr.gatling.grpc.request.Call
-import com.github.phisgr.gatling.grpc.util.{GrpcStringBuilder, delayedParsing}
+import com.github.phisgr.gatling.grpc.util.{GrpcStringBuilder, delayedParsing, statusCodeOption}
 import io.gatling.commons.stats.{KO, OK}
 import io.gatling.commons.util.Clock
 import io.gatling.commons.util.StringHelper.Eol
@@ -156,7 +156,7 @@ class GrpcCallAction[Req, Res](
           startTimestamp = startTimestamp,
           endTimestamp = endTimestamp,
           status = status,
-          responseCode = Some(grpcStatus.getCode.toString),
+          responseCode = statusCodeOption(grpcStatus.getCode.value()),
           message = errorMessage
         )
         withStatus.logGroupRequestTimings(startTimestamp = startTimestamp, endTimestamp = endTimestamp)
