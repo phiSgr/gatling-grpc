@@ -8,13 +8,20 @@ import com.github.phisgr.gatling.grpc.action.StreamSendBuilder as StreamSendBuil
 import io.gatling.core.action.builder.ActionBuilder as ActionBuilderS
 
 class StreamSendBuilder<Req>(@PublishedApi internal val wrapped: StreamSendBuilderS<Req>) : ActionBuilder {
-    // Java doesn't have a built-in TriFunction interface
-    // won't bother creating a Java-specific API
+    @JvmSynthetic
     inline fun preSendAction(crossinline action: (Clock, Req, Session) -> Unit): StreamSendBuilder<Req> =
         StreamSendBuilder(wrapped.preSendAction { clock, req, session ->
             action(clock, req, Session(session))
             BoxedUnit.UNIT
         })
 
+    fun preSendAction(action: PreSendAction<Req>): StreamSendBuilder<Req> =
+        preSendAction { clock, req, session -> action(clock, req, session) }
+
     override fun asScala(): ActionBuilderS = wrapped
+}
+
+@FunctionalInterface // but not Kotlin's `fun interface` because it's for Java
+interface PreSendAction<Req> {
+    operator fun invoke(clock: Clock, req: Req, session: Session)
 }

@@ -163,7 +163,7 @@ class KtStreamingSimulation : Simulation() {
                     if (ThreadLocalRandom.current().nextBoolean()) throw IllegalStateException()
 
                     // Exposing a Gatling's internal Scala class to Java/Kotlin is not ideal
-                    // but it's not used enough to be justify wrapper code
+                    // but it's not used enough to justify wrapper code
                     statsEngine.logResponse(
                         session.scenario(),
                         session.groups(),

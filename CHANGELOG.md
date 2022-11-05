@@ -1,3 +1,7 @@
+#### 0.15.1
+
+Fix delay logging bug in client stream.
+
 #### 0.15.0
 
 Gatling 3.8.4.

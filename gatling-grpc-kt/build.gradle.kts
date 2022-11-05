@@ -24,7 +24,7 @@ dependencies {
         gatlingImplementation(s)
     }
 
-    add("com.github.phisgr:gatling-grpc:0.15.1-SNAPSHOT")
+    add("com.github.phisgr:gatling-grpc:0.15.1")
     add("io.gatling:gatling-core-java:3.8.4")
     add("com.github.phisgr:gatling-kt-ext:0.4.0")
 
@@ -62,7 +62,7 @@ publishing {
         create<MavenPublication>("maven") {
             groupId = "com.github.phisgr"
             artifactId = "gatling-grpc-kt"
-            version = "0.15.1-SNAPSHOT"
+            version = "0.15.1"
 
             from(components["java"])
 
