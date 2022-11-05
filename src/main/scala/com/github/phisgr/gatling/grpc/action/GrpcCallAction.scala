@@ -3,10 +3,9 @@ package com.github.phisgr.gatling.grpc.action
 import com.github.phisgr.gatling.forToMatch
 import com.github.phisgr.gatling.generic.util.EventLoopHelper
 import com.github.phisgr.gatling.grpc.ClientCalls
-import com.github.phisgr.gatling.grpc.check.{GrpcCheck, GrpcResponse, StatusExtract}
-import com.github.phisgr.gatling.grpc.protocol.ByteArrayMarshaller
+import com.github.phisgr.gatling.grpc.check.GrpcResponse
 import com.github.phisgr.gatling.grpc.protocol.Statuses.{MultipleResponses, NoResponses}
-import com.github.phisgr.gatling.grpc.request.Call
+import com.github.phisgr.gatling.grpc.request.UnaryResponse
 import com.github.phisgr.gatling.grpc.util.{GrpcStringBuilder, delayedParsing, statusCodeOption}
 import io.gatling.commons.stats.{KO, OK}
 import io.gatling.commons.util.Clock
@@ -18,14 +17,14 @@ import io.gatling.core.session.{Expression, Session}
 import io.gatling.core.stats.StatsEngine
 import io.gatling.core.structure.ScenarioContext
 import io.gatling.netty.util.StringBuilderPool
-import io.grpc.MethodDescriptor.Marshaller
 import io.grpc._
 
 class GrpcCallAction[Req, Res](
   builder: GrpcCallActionBuilder[Req, Res],
   ctx: ScenarioContext,
   override val next: Action
-) extends Call[Req, Res](ctx, builder.callAttributes, builder.method) {
+) extends UnaryResponse[Req, Res](builder, ctx) {
+  override def loggingClass: Class[_] = getClass
 
   private[this] val throttler = ctx.coreComponents.throttler match {
     // not calling .filter to not make ctx a field
@@ -37,21 +36,9 @@ class GrpcCallAction[Req, Res](
   override val statsEngine: StatsEngine = ctx.coreComponents.statsEngine
 
   override val name: String = genName("grpcCall")
-  override def requestName: Expression[String] = builder.requestName
-
-  private[this] val resolvedChecks = (if (builder.checks.exists(_.scope.checksStatus)) builder.checks else {
-    StatusExtract.DefaultCheck :: builder.checks
-  }).asInstanceOf[List[GrpcCheck[Any]]]
-
-  override protected def needParsed: Boolean =
-    builder.checks.exists(_.scope.checksValue) ||
-      // If trace is enabled, we always log the response. No need to delay parsing
-      logger.underlying.isTraceEnabled
-  override protected def mayNeedDelayedParsing: Boolean = logger.underlying.isDebugEnabled
-
-  // For delayed parsing
-  private[this] val responseMarshaller: Marshaller[Res] =
-    if (lazyParseMethod.getResponseMarshaller eq ByteArrayMarshaller) builder.method.getResponseMarshaller else null
+  override val requestName: Expression[String] = builder.requestName
+  private[this] val payload = builder.payload
+  private[this] val isSilent = builder.isSilent
 
   private def run(
     call: ClientCall[Req, Any],
@@ -71,7 +58,7 @@ class GrpcCallAction[Req, Res](
     for {
       name <- requestName(session)
       headers <- resolveHeaders(session)
-      resolvedPayload <- builder.payload(session)
+      resolvedPayload <- payload(session)
       callOptions <- callOptions(session)
     } yield {
       val call = newCall(session, callOptions)
@@ -147,7 +134,7 @@ class GrpcCallAction[Req, Res](
       val status = if (checkError.isEmpty) OK else KO
       val errorMessage = checkError.map(_.message)
 
-      val newSession = if (builder.isSilent) checkSaveUpdated else {
+      val newSession = if (isSilent) checkSaveUpdated else {
         val withStatus = if (status == KO) checkSaveUpdated.markAsFailed else checkSaveUpdated
         statsEngine.logResponse(
           withStatus.scenario,
