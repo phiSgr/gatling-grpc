@@ -28,7 +28,7 @@ lazy val root = (project in file("."))
   .settings(publishSettings: _*)
   .settings(
     name := "gatling-grpc",
-    version := "0.15.1",
+    version := "0.16.0-SNAPSHOT",
     inConfig(Test)(sbtprotoc.ProtocPlugin.protobufConfigSettings),
     Test / PB.targets := Seq(
       scalapb.gen() -> (Test / sourceManaged).value,
