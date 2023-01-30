@@ -8,7 +8,7 @@ val commonSettings = Seq(
   crossPaths := false,
 )
 
-val gatlingVersion = "3.8.4"
+val gatlingVersion = "3.9.0"
 val gatlingCore = "io.gatling" % "gatling-core" % gatlingVersion
 
 val publishSettings = {
