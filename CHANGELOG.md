@@ -1,3 +1,7 @@
+#### 0.16.0
+
+Gatling 3.9.0
+
 #### 0.15.1
 
 Fix delay logging bug in client stream.
