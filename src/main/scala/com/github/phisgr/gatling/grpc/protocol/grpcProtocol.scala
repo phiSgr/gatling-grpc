@@ -124,7 +124,7 @@ object GrpcProtocol extends StrictLogging {
       case nettyBuilder: NettyChannelBuilder =>
         nettyBuilder
           .eventLoopGroup(coreComponents.eventLoopGroup)
-          .channelFactory(Transports.newSocketChannelFactory(coreComponents.configuration.netty.useNativeTransport))
+          .channelFactory(Transports.newSocketChannelFactory(coreComponents.configuration.netty.useNativeTransport, coreComponents.configuration.netty.useIoUring))
       case _ =>
     }
   }
