@@ -6,6 +6,7 @@ A [Gatling](http://gatling.io/) load test plugin for [gRPC](https://grpc.io/).
 
 Since 3.7, Gatling adds Java API for the test to be written in Java or Kotlin.
 Since Gatling-gRPC 0.14.0, [a binding](gatling-grpc-kt) is written in Kotlin for Java and Kotlin users.
+It is demoed in the [gatling-grpc-gradle-demo](https://github.com/phiSgr/gatling-grpc-gradle-demo/blob/master/src/gatling/kotlin/com/github/phisgr/exampletest/PingPongKt.kt) project.
 
 ## Usage
 
