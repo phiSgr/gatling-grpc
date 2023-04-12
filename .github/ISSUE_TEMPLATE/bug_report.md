@@ -19,7 +19,11 @@ A clear and concise description of what you expected to happen.
 **Environment:**
  - OS: [e.g. OSX]
  - Java: result of `java -version`
- - Version: [e.g. 0.4.0]
+ - Versions:
+   - Gatling-gRRC:
+   - Kotlin binding version (if applicable):
+   - Gatling:
+   - Launcher: zip bundle, Maven, sbt, Gradle, or FrontLine
 
 **Additional context**
 Add any other context about the problem here.
