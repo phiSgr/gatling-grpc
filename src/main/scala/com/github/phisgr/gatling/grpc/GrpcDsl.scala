@@ -3,13 +3,12 @@ package com.github.phisgr.gatling.grpc
 import com.github.phisgr.gatling.grpc.protocol.{DynamicGrpcProtocol, StaticGrpcProtocol}
 import com.github.phisgr.gatling.grpc.request.Grpc
 import com.github.phisgr.gatling.grpc.stream.StreamCall
-import com.github.phisgr.gatling.grpc.util.wrongTypeMessage
+import com.github.phisgr.gatling.grpc.util.getFromSession
 import io.gatling.commons.NotNothing
-import io.gatling.commons.validation.Success
-import io.gatling.core.session.{Expression, Session}
-import io.gatling.core.session.el.ElMessages
+import io.gatling.core.session._
 import io.grpc.{ManagedChannelBuilder => MCB}
 
+import java.lang.invoke.MethodType
 import scala.reflect.ClassTag
 
 trait GrpcDsl {
@@ -47,10 +46,11 @@ trait GrpcDsl {
    * @tparam T expected type of the session attribute. Usually inferred by the compiler
    * @return an Expression that retrieves the session attribute and checks its type
    */
-  def $[T: ClassTag : NotNothing](name: String): Expression[T] = s => s.attributes.get(name) match {
-    case Some(t: T) => Success(t)
-    case None => ElMessages.undefinedSessionAttribute(name)
-    case Some(value) => wrongTypeMessage[T](value)
+  def $[T: ClassTag : NotNothing](name: String): Expression[T] = {
+    // trick to get `java.lang.Integer` from `int`
+    val clazz = MethodType.methodType(implicitly[ClassTag[T]].runtimeClass).wrap().returnType()
+
+    { session => getFromSession[T](clazz, session, name) }
   }
 
   /**

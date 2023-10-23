@@ -4,7 +4,7 @@ import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform.getCurr
 plugins {
     id("com.google.protobuf") version "0.8.14"
 
-    id("io.gatling.gradle") version "3.8.3.2"
+    id("io.gatling.gradle") version "3.9.5.6"
     id("scala")
     idea
 }
@@ -15,8 +15,8 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.phisgr:gatling-grpc:0.15.1")
-    implementation("io.gatling:gatling-core-java:3.8.4")
+    implementation("com.github.phisgr:gatling-grpc:0.17.0")
+    implementation("io.gatling:gatling-core-java:3.9.5")
     implementation("com.github.phisgr:gatling-javapb:1.3.0")
     implementation("javax.annotation:javax.annotation-api:1.3.2")
 }

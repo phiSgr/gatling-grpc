@@ -2,14 +2,14 @@ package com.github.phisgr.gatling.grpc
 
 import com.google.common.base.Charsets.US_ASCII
 import io.gatling.commons.util.StringHelper.Eol
-import io.gatling.commons.validation.Failure
+import io.gatling.commons.validation.{Failure, Success, Validation}
 import io.gatling.core.session.Session
+import io.gatling.core.session.el.ElMessages
 import io.grpc.MethodDescriptor.Marshaller
-import io.grpc.{InternalMetadata, Metadata, Status}
+import io.grpc.{InternalMetadata, Metadata, MethodDescriptor, Status}
 
 import java.io.ByteArrayInputStream
 import java.lang.{StringBuilder => JStringBuilder}
-import scala.reflect.ClassTag
 
 package object util {
   // pre-allocates the `Some` wrappers
@@ -110,9 +110,17 @@ package object util {
     }
   }
 
-  private[gatling] def wrongTypeMessage[T: ClassTag](value: Any) = Failure(
-    s"Value $value is of type ${value.getClass.getName}, expected ${implicitly[ClassTag[T]].runtimeClass.getName}"
+  private[gatling] def wrongTypeMessage(value: Any, clazz: Class[_]) = Failure(
+    s"Value $value is of type ${value.getClass.getName}, expected ${clazz.getName}"
   )
+
+  private[gatling] def getFromSession[T](clazz: Class[_], session: Session, name: String): Validation[T] = {
+    session.attributes.get(name) match {
+      case Some(value) =>
+        if (clazz.isInstance(value)) Success(value.asInstanceOf[T]) else wrongTypeMessage(value, clazz)
+      case None => ElMessages.undefinedSessionAttribute(name)
+    }
+  }
 
   private[gatling] def delayedParsing[Res](body: Any, responseMarshaller: Marshaller[Res]): Any = {
     if (responseMarshaller.eq(null) || null == body) {
@@ -122,6 +130,24 @@ package object util {
       val rawBytes = body.asInstanceOf[Array[Byte]]
       responseMarshaller.parse(new ByteArrayInputStream(rawBytes))
     }
+  }
+
+  private[gatling] def checkMethodDescriptor(method: MethodDescriptor[_, _], expected: MethodDescriptor.MethodType): Unit = {
+    require(method.getType == expected,
+      (method.getType match {
+        case MethodDescriptor.MethodType.UNARY => Some("rpc")
+        case MethodDescriptor.MethodType.SERVER_STREAMING => Some("serverStream")
+        case MethodDescriptor.MethodType.BIDI_STREAMING => Some("bidiStream")
+        case MethodDescriptor.MethodType.CLIENT_STREAMING => Some("clientStream")
+        case MethodDescriptor.MethodType.UNKNOWN => None
+      }) match {
+        case Some(builderName) =>
+          s"Expected $expected, but got ${method.getFullMethodName} with type ${method.getType}. " +
+            s"You should use grpc(...).$builderName(...) for this method."
+        case None =>
+          "Unknown method type"
+      }
+    )
   }
 
 }

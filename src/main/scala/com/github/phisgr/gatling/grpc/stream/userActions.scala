@@ -5,6 +5,7 @@ import io.gatling.core.action.Action
 import io.gatling.core.session.Session
 
 trait Cancellable {
+  val streamName: String
   def cancel(mainSession: Session, next: Action): Unit
 }
 

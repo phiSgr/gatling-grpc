@@ -20,7 +20,7 @@ import scala.reflect.ClassTag
 
 case class BidiStreamStartActionBuilder[Req: ClassTag, Res](
   private[gatling] val requestName: Expression[String],
-  private[gatling] val streamName: String,
+  private[gatling] val streamName: Expression[String],
   private[gatling] override val method: MethodDescriptor[Req, Res],
   private[gatling] override val extractor: EventExtractor[Res] = TimestampExtractor.Ignore,
   private[gatling] val _sessionCombiner: SessionCombiner = SessionCombiner.NoOp,
@@ -61,10 +61,9 @@ class BidiStreamStartAction[Req: ClassTag, Res](
 
   override def requestName: Expression[String] = builder.requestName
   override def sendRequest(session: Session): Validation[Unit] = forToMatch {
-    val streamName = builder.streamName
-
     for {
       name <- requestName(session)
+      streamName <- builder.streamName(session)
       _ <- ensureNoStream(session, streamName, direction = "bidi")
       headers <- resolveHeaders(session)
       callOptions <- callOptions(session)
@@ -92,13 +91,15 @@ class BidiStreamStartAction[Req: ClassTag, Res](
   override val name: String = genName("serverStreamStart")
 }
 
-class StreamCompleteBuilder(requestName: Expression[String], streamName: String, waitType: WaitType) extends ActionBuilder {
+class StreamCompleteBuilder(requestName: Expression[String], streamName: Expression[String], waitType: WaitType) extends ActionBuilder {
   override def build(ctx: ScenarioContext, next: Action): Action =
-    new StreamMessageAction(requestName, ctx, next, baseName = "StreamComplete", direction = "bidi") {
+    new StreamMessageAction(requestName, streamName, ctx, next, baseName = "StreamComplete", direction = "bidi") {
+      private[this] val waitType = StreamCompleteBuilder.this.waitType
+
       override def sendRequest(session: Session): Validation[Unit] = forToMatch {
         for {
-          call <- fetchCall[BidiStreamCall[_, _]](streamName, session)
-          _ <- call.onClientCompleted(session, next, waitType)
+          call <- fetchCall(classOf[BidiStreamCall[_, _]], session)
+          _ <- call.onClientCompleted(session, this.next, waitType)
         } yield ()
       }
     }
@@ -106,11 +107,14 @@ class StreamCompleteBuilder(requestName: Expression[String], streamName: String,
 
 case class StreamSendBuilder[Req](
   private[gatling] val requestName: Expression[String],
-  private[gatling] val streamName: String,
+  private[gatling] val streamName: Expression[String],
   private[gatling] val req: Expression[Req],
   private[gatling] val direction: String,
   private[gatling] val preSendAction: (Clock, Req, Session) => Unit = null
 ) extends ActionBuilder {
+  /**
+   * Adds a side effect immediately before sending
+   */
   def preSendAction(action: (Clock, Req, Session) => Unit): StreamSendBuilder[Req] =
     copy(preSendAction = action)
 
@@ -122,16 +126,16 @@ case class StreamSendBuilder[Req](
 
 class StreamSendAction[Req](
   requestName: Expression[String],
-  streamName: String,
+  streamName: Expression[String],
   req: Expression[Req],
   direction: String,
   preSendAction: (Clock, Req, Session) => Unit,
   ctx: ScenarioContext,
   next: Action
-) extends StreamMessageAction(requestName, ctx, next, baseName = "StreamSend", direction = direction) {
+) extends StreamMessageAction(requestName, streamName, ctx, next, baseName = "StreamSend", direction = direction) {
   override def sendRequest(session: Session): Validation[Unit] = forToMatch {
     for {
-      call <- fetchCall[ClientStreamer[Req]](streamName, session)
+      call <- fetchCall(classOf[ClientStreamer[Req]], session)
       payload <- req(session)
       _ <- {
         if (preSendAction ne null) {

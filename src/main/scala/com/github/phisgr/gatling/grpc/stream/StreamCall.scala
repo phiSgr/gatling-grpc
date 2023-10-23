@@ -21,7 +21,7 @@ import scala.util.control.{NoStackTrace, NonFatal}
 
 abstract class StreamCall[Req, Res, State >: Completed](
   requestName: String,
-  streamName: String,
+  override val streamName: String,
   initState: State,
   protected var streamSession: Session,
   val call: ClientCall[Req, Any],
@@ -122,7 +122,7 @@ abstract class StreamCall[Req, Res, State >: Completed](
       this.mainCont = null
       this.waitType = NoWait
 
-      combineAndNext(mainSession = session, next = next, close = false)
+      combineAndNext(mainSession = session, next = next, close = false, sync = sync)
     }
   }
 
@@ -178,34 +178,44 @@ abstract class StreamCall[Req, Res, State >: Completed](
     logger.trace(dump)
 
     if (this.mainSession ne null) {
-      combineAndNext(mainSession = this.mainSession, next = this.mainCont, close = true)
+      combineAndNext(mainSession = this.mainSession, next = this.mainCont, close = true, sync = false)
     }
   }
 
   private[this] var mainSession: Session = _
   private[this] var mainCont: Action = _
   private[this] var waitType: WaitType = NoWait
+  private[this] var sync: Boolean = false
 
-  def combineState(mainSession: Session, next: Action, waitType: WaitType): Unit = {
+  def combineState(mainSession: Session, next: Action, waitType: WaitType, sync: Boolean): Unit = {
     val completed = _state.isInstanceOf[Completed]
     if (!completed && (waitType ne NoWait)) {
       this.mainSession = mainSession
       this.mainCont = next
       this.waitType = waitType
+      this.sync = sync
     } else {
-      combineAndNext(mainSession, next, close = completed)
+      combineAndNext(mainSession, next, close = completed, sync = sync)
     }
   }
 
   def cancel(mainSession: Session, next: Action): Unit = {
-    combineAndNext(mainSession, next, close = true)
+    combineAndNext(mainSession, next, close = true, sync = false)
     call.cancel(null, Cancelled)
   }
 
-  private def combineAndNext(mainSession: Session, next: Action, close: Boolean): Unit = {
+  private def combineAndNext(mainSession: Session, next: Action, close: Boolean, sync: Boolean): Unit = {
     val combined = combine.combineSafely(main = mainSession, branched = streamSession, logger = logger)
 
-    val newSession = if (!close) combined else combined.remove(streamName)
+    val newSession = if (!close) {
+      if (sync) {
+        streamSession = combined
+      }
+      combined
+    } else {
+      combined.remove(streamName)
+    }
+
     next ! newSession
   }
 }

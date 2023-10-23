@@ -18,7 +18,7 @@ import scala.reflect.ClassTag
 
 case class ClientStreamStartActionBuilder[Req: ClassTag, Res](
   private[gatling] val requestName: Expression[String],
-  private[gatling] val streamName: String,
+  private[gatling] val streamName: Expression[String],
   private[gatling] override val method: MethodDescriptor[Req, Res],
   private[gatling] override val callAttributes: CallAttributes = CallAttributes(),
   private[gatling] override val checks: List[GrpcCheck[Res]] = Nil,
@@ -50,6 +50,7 @@ class ClientStreamStartAction[Req: ClassTag, Res](
   override def sendRequest(session: Session): Validation[Unit] = forToMatch {
     for {
       name <- requestName(session)
+      streamName <- streamName(session)
       _ <- ensureNoStream(session, streamName, direction = "client")
       headers <- resolveHeaders(session)
       callOptions <- callOptions(session)
@@ -60,7 +61,7 @@ class ClientStreamStartAction[Req: ClassTag, Res](
         call = newCall(session, callOptions),
         responseMarshaller = responseMarshaller,
         headers = headers,
-        ctx = ctx,
+        statsEngine = statsEngine,
         checks = resolvedChecks,
         reqClass = reqClass,
         eventLoop = session.eventLoop,
@@ -71,19 +72,19 @@ class ClientStreamStartAction[Req: ClassTag, Res](
     }
   }
 
-  override def statsEngine: StatsEngine = ctx.coreComponents.statsEngine
+  override val statsEngine: StatsEngine = ctx.coreComponents.statsEngine
   override val clock: Clock = ctx.coreComponents.clock
   override val name: String = genName("serverStreamStart")
 }
 
-class ClientStreamCompletionBuilder(requestName: Expression[String], streamName: String) extends ActionBuilder {
+class ClientStreamCompletionBuilder(requestName: Expression[String], streamName: Expression[String]) extends ActionBuilder {
   override def build(ctx: ScenarioContext, next: Action): Action =
-    new StreamMessageAction(requestName, ctx, next, baseName = "StreamEnd", direction = "client") {
+    new StreamMessageAction(requestName, streamName, ctx, next, baseName = "StreamEnd", direction = "client") {
       override def sendRequest(session: Session): Validation[Unit] = forToMatch {
         for {
-          call <- fetchCall[ClientStreamCall[_, _]](streamName, session)
+          call <- fetchCall(classOf[ClientStreamCall[_, _]], session)
         } yield {
-          call.completeAndWait(session, next)
+          call.completeAndWait(session, this.next)
         }
       }
     }

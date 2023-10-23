@@ -11,17 +11,20 @@ import io.gatling.core.structure.ScenarioContext
 
 class StreamReconciliateBuilder(
   requestName: Expression[String],
-  streamName: String,
+  streamName: Expression[String],
   direction: String,
-  waitType: WaitType
+  waitType: WaitType,
+  sync: Boolean
 ) extends ActionBuilder {
   override def build(ctx: ScenarioContext, next: Action): Action =
-    new StreamMessageAction(requestName, ctx, next, baseName = "StreamReconciliate", direction) {
+    new StreamMessageAction(requestName, streamName, ctx, next, baseName = "StreamReconciliate", direction) {
+      private[this] val sync = StreamReconciliateBuilder.this.sync
+      private[this] val waitType = StreamReconciliateBuilder.this.waitType
       override def sendRequest(session: Session): Validation[Unit] = forToMatch {
         for {
-          call <- fetchCall[StreamCall[_, _, _]](streamName, session)
+          call <- fetchCall(classOf[StreamCall[_, _, _]], session)
         } yield {
-          call.combineState(session, next, waitType)
+          call.combineState(session, this.next, waitType, sync)
         }
       }
     }

@@ -13,22 +13,21 @@ import io.gatling.commons.validation.Validation
 import io.gatling.core.action.Action
 import io.gatling.core.check.Check
 import io.gatling.core.session.Session
-import io.gatling.core.structure.ScenarioContext
+import io.gatling.core.stats.StatsEngine
 import io.gatling.jdk.util.StringBuilderPool
 import io.grpc.MethodDescriptor.Marshaller
 import io.grpc.{ClientCall, Metadata, Status}
 import io.netty.channel.EventLoop
 
-import scala.reflect.ClassTag
 import scala.util.control.NonFatal
 
 class ClientStreamCall[Req, Res](
   requestName: String,
-  streamName: String,
+  override val streamName: String,
   call: ClientCall[Req, Any],
   responseMarshaller: Marshaller[Res],
   headers: Metadata,
-  ctx: ScenarioContext,
+  statsEngine: StatsEngine,
   checks: List[GrpcCheck[Any]],
   reqClass: Class[Req],
   eventLoop: EventLoop,
@@ -41,8 +40,6 @@ class ClientStreamCall[Req, Res](
   } else {
     BothOpen
   }
-
-  private implicit def reqTag: ClassTag[Req] = ClassTag(reqClass)
 
   try {
     val listener = new Listener
@@ -89,7 +86,7 @@ class ClientStreamCall[Req, Res](
 
   def onReq(req: Req): Validation[Unit] = {
     if (!reqClass.isInstance(req)) {
-      wrongTypeMessage[Req](req)
+      wrongTypeMessage(req, reqClass)
     } else {
       if (callCompleted) {
         logger.debug(s"Client issued message but stream $streamName already completed")
@@ -122,7 +119,7 @@ class ClientStreamCall[Req, Res](
     }
   }
 
-  def finishCall(): Unit = {
+  private def finishCall(): Unit = {
     val (checkSaveUpdated, checkError) = Check.check(
       new GrpcResponse(res, grpcStatus, trailers),
       session,
@@ -134,7 +131,7 @@ class ClientStreamCall[Req, Res](
     val errorMessage = checkError.map(_.message)
 
     val withStatus = if (status == KO) checkSaveUpdated.markAsFailed else checkSaveUpdated
-    ctx.coreComponents.statsEngine.logResponse(
+    statsEngine.logResponse(
       withStatus.scenario,
       withStatus.groups,
       requestName,

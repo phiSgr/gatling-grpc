@@ -37,10 +37,13 @@ class StreamingExample extends Simulation {
 
   val timeExpression: Expression[Long] = { _ => System.currentTimeMillis() }
 
+  val listenerName = "listener"
+  val chatterName = "chatter"
+
   val listenCall = grpc("Listen")
-    .serverStream(ChatServiceGrpc.METHOD_LISTEN, streamName = "listener")
+    .serverStream(ChatServiceGrpc.METHOD_LISTEN, streamName = listenerName)
   val chatCall = grpc("Chat")
-    .bidiStream(ChatServiceGrpc.METHOD_CHAT, streamName = "chatter")
+    .bidiStream(ChatServiceGrpc.METHOD_CHAT, streamName = chatterName)
   val complete = chatCall.copy(requestName = "Complete").complete
 
   val grpcConf = grpc(managedChannelBuilder(target = "localhost:8080").usePlaintext())
@@ -78,7 +81,7 @@ class StreamingExample extends Simulation {
         .exec { session =>
           val diff = System.currentTimeMillis() - session.attributes("prevTime").asInstanceOf[Long]
 
-          if (session.contains(listenCall.streamName)) {
+          if (session.contains(listenerName)) {
             require(
               diff <= 4,
               "This hook should be immediately run after receiving, " +
@@ -151,7 +154,7 @@ class StreamingExample extends Simulation {
     .exec(complete)
     .exec(chatCall.copy(requestName = "Wait for end.").reconciliate(waitFor = StreamEnd))
     .exec { session =>
-      require(!session.contains(chatCall.streamName))
+      require(!session.contains(chatterName))
       session
     }
 

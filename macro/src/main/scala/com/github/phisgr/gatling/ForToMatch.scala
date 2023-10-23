@@ -13,6 +13,18 @@ object ForToMatch {
       case _ => t
     }
 
+    // TODO: merge logic with matchValidation
+    def matchFailure(v: c.Tree) = v match {
+      case Apply(Select(inner, TermName("mapFailure")), List(Function(List(ValDef(_, failureName, _, _)), body))) =>
+        q"""($inner) match {
+          case s@io.gatling.commons.validation.Success(_) => s
+          case f =>
+            val $failureName = f.asInstanceOf[io.gatling.commons.validation.Failure].message
+            io.gatling.commons.validation.Failure($body)
+        }"""
+      case _ => v
+    }
+
     def matchValidation(v: c.Tree, name: TermName, result: c.Tree) = {
       q"""($v) match {
         case io.gatling.commons.validation.Success($name) => $result
@@ -25,6 +37,8 @@ object ForToMatch {
         matchValidation(v, name, toMatch(c)(removeEmptyMatch(body, name)))
       case Apply(TypeApply(Select(v, TermName("map")), List(resultT)), List(Function(List(ValDef(_, name, tpt, _)), body))) =>
         removeEmptyMatch(body, name) match {
+          case Ident(`name`) => // identity map
+            matchFailure(v)
           case Literal(Constant(())) if tpt.tpe =:= definitions.UnitTpe => v
           case cleanedBody =>
             val successBody = if (resultT.tpe =:= definitions.UnitTpe) {

@@ -23,6 +23,7 @@ class LensExprSpec extends AnyFlatSpec with Matchers with StrictLogging {
   )
 
   "Setting with lens" should "work" in {
+
     val barE = Bar.defaultInstance.updateExpr(_.baz :~ $("baz"))
     barE(session) shouldBe Success(Bar(2))
 
@@ -133,7 +134,7 @@ class LensExprSpec extends AnyFlatSpec with Matchers with StrictLogging {
 
   "Wrong session variables" should "fail" in {
     Bar.defaultInstance.updateExpr(_.baz :~ $("bar"))(session) shouldBe
-      Failure("Value Bar(1,UnknownFieldSet(Map())) is of type com.github.phisgr.pb.complex.complex.Bar, expected int")
+      Failure("Value Bar(1,UnknownFieldSet(Map())) is of type com.github.phisgr.pb.complex.complex.Bar, expected java.lang.Integer")
     Bar.defaultInstance.updateExpr(_.baz :~ $("nonExisting"))(session) shouldBe
       Failure("No attribute named 'nonExisting' is defined")
   }

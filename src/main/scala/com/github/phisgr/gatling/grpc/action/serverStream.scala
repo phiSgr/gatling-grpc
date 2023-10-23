@@ -17,7 +17,7 @@ import io.grpc.MethodDescriptor
 
 case class ServerStreamStartActionBuilder[Req, Res](
   private[gatling] val requestName: Expression[String],
-  private[gatling] val streamName: String,
+  private[gatling] val streamName: Expression[String],
   private[gatling] override val method: MethodDescriptor[Req, Res],
   private[gatling] val req: Expression[Req],
   private[gatling] override val extractor: EventExtractor[Res] = TimestampExtractor.Ignore,
@@ -58,10 +58,9 @@ class ServerStreamStartAction[Req, Res](
 
   override def requestName: Expression[String] = builder.requestName
   override def sendRequest(session: Session): Validation[Unit] = forToMatch {
-    val streamName = builder.streamName
-
     for {
       name <- requestName(session)
+      streamName <- builder.streamName(session)
       _ <- ensureNoStream(session, streamName, direction = "server")
       headers <- resolveHeaders(session)
       resolvedPayload <- builder.req(session)

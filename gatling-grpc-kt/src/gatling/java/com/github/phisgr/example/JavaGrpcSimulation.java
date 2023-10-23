@@ -17,7 +17,7 @@ import java.util.function.Function;
 
 import static com.github.phisgr.example.UtilKt.errorResponseKey;
 import static com.github.phisgr.example.UtilKt.tokenHeaderKey;
-import static com.github.phisgr.gatling.kt.ValidationKt.getOrThrow;
+import static com.github.phisgr.gatling.kt.Validation.getOrThrow;
 import static com.github.phisgr.gatling.kt.grpc.GrpcDsl.*;
 import static io.gatling.javaapi.core.CoreDsl.*;
 

@@ -1,3 +1,12 @@
+#### 0.17.0
+
+Dynamic `streamName`, following Gatling's [change in WebSocket](
+https://github.com/gatling/gatling/pull/4037).
+
+Adds `sync` parameter for `reconciliate` call for streams.
+
+`TimestampExtractor` and `SessionCombiner` now both have their Kotlin wrapper versions.
+
 #### 0.16.0
 
 Gatling 3.9.0

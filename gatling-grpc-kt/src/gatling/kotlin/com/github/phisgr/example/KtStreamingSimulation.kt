@@ -1,10 +1,10 @@
 package com.github.phisgr.example
 
 import com.github.phisgr.example.Chat.ChatMessage
-import com.github.phisgr.gatling.generic.SessionCombiner
-import com.github.phisgr.gatling.grpc.stream.TimestampExtractor
 import com.github.phisgr.gatling.kt.*
+import com.github.phisgr.gatling.kt.generic.SessionCombiner
 import com.github.phisgr.gatling.kt.grpc.*
+import com.github.phisgr.gatling.kt.grpc.stream.TimestampExtractor
 import com.google.protobuf.Empty
 import io.gatling.javaapi.core.CoreDsl.*
 import io.gatling.javaapi.core.Session
@@ -40,10 +40,13 @@ class KtStreamingSimulation : Simulation() {
 
         val timeExpression: Function<Session, Long> = Function { System.currentTimeMillis() }
 
+        val listenerName = "listener"
+        val chatterName = "chatter"
+
         val listenCall = grpc("Listen")
-            .serverStream(ChatServiceGrpc.getListenMethod(), streamName = "listener")
+            .serverStream(ChatServiceGrpc.getListenMethod(), streamName = listenerName)
         val chatCall = grpc("Chat")
-            .bidiStream(ChatServiceGrpc.getChatMethod(), streamName = "chatter")
+            .bidiStream(ChatServiceGrpc.getChatMethod(), streamName = chatterName)
         val complete = chatCall.withRequestName("Complete").complete()
 
         val grpcConf = grpc(ManagedChannelBuilder.forTarget("localhost:8080").usePlaintext())
@@ -58,7 +61,7 @@ class KtStreamingSimulation : Simulation() {
                         message.time + ThreadLocalRandom.current().nextInt(-5, 5)
                     } else {
                         // Cut down log size by ignoring other virtual users
-                        TimestampExtractor.IgnoreMessage()
+                        TimestampExtractor.IGNORE_MESSAGE
                     }
                 }
                 .check(
@@ -82,7 +85,7 @@ class KtStreamingSimulation : Simulation() {
                 +peek { session ->
                     val diff = System.currentTimeMillis() - session.getLong("prevTime")
 
-                    if (session.contains(listenCall.streamName)) {
+                    if (session.contains(listenerName)) {
                         require(diff <= 4) {
                             "This hook should be immediately run after receiving, " +
                                 "which should not be long after sending. " +
@@ -113,8 +116,8 @@ class KtStreamingSimulation : Simulation() {
                 .connect()
                 .check({ extract { it.time }.gt(timeExpression) })
                 .callOptions { CallOptions.DEFAULT.withDeadlineAfter(10, TimeUnit.HOURS) }
-                .timestampExtractor(TimestampExtractor.ignore())
-                .sessionCombiner(SessionCombiner.NoOp())
+                .timestampExtractor(TimestampExtractor.IGNORE)
+                .sessionCombiner(SessionCombiner.NO_OP)
                 .streamEndLog(logWhen = NEVER)
 
             @Suppress("UNCHECKED_CAST") // hard to send a wrong typed message by mistake
@@ -146,7 +149,7 @@ class KtStreamingSimulation : Simulation() {
             +complete
             +chatCall.withRequestName("Wait for end.").reconciliate(waitFor = STREAM_END)
             +peek { session ->
-                require(!session.contains(chatCall.streamName))
+                require(!session.contains(chatterName))
             }
         }
 

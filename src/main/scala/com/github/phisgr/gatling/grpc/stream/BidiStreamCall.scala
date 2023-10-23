@@ -11,7 +11,6 @@ import io.gatling.core.session.Session
 import io.gatling.core.structure.ScenarioContext
 import io.grpc.{ClientCall, Metadata, Status}
 
-import scala.reflect.ClassTag
 import scala.util.control.NonFatal
 
 class BidiStreamCall[Req, Res](
@@ -41,7 +40,6 @@ class BidiStreamCall[Req, Res](
   ctx.coreComponents.statsEngine,
   logWhen
 ) with ClientStreamer[Req] {
-  private implicit def reqTag: ClassTag[Req] = ClassTag(reqClass)
 
   {
     val clock = ctx.coreComponents.clock
@@ -59,7 +57,7 @@ class BidiStreamCall[Req, Res](
 
   override def onReq(req: Req): Validation[Unit] = {
     if (!reqClass.isInstance(req)) {
-      wrongTypeMessage[Req](req)
+      wrongTypeMessage(req, reqClass)
     } else {
       _state match {
         case BothOpen =>
@@ -89,7 +87,7 @@ class BidiStreamCall[Req, Res](
       case _: Completed =>
         logger.debug(s"Client issued complete order but stream $streamName already completed")
     }
-    combineState(mainSession = session, next, waitType)
+    combineState(mainSession = session, next, waitType, sync = false)
     Validation.unit
   }
 

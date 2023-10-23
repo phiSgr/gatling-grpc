@@ -4,15 +4,15 @@ ThisBuild / GatlingIt / publishArtifact := false
 
 val commonSettings = Seq(
   organization := "com.github.phisgr",
-  scalaVersion := "2.13.10",
+  scalaVersion := "2.13.12",
   crossPaths := false,
 )
 
-val gatlingVersion = "3.9.0"
+val gatlingVersion = "3.9.5"
 val gatlingCore = "io.gatling" % "gatling-core" % gatlingVersion
 
 val publishSettings = {
-  import xerial.sbt.Sonatype._
+  import xerial.sbt.Sonatype.*
   Seq(
     publishTo := SonatypeKeys.sonatypePublishTo.value,
     publishMavenStyle := true,
@@ -24,11 +24,11 @@ val publishSettings = {
 
 lazy val root = (project in file("."))
   .enablePlugins(GatlingPlugin)
-  .settings(commonSettings: _*)
-  .settings(publishSettings: _*)
+  .settings(commonSettings *)
+  .settings(publishSettings *)
   .settings(
     name := "gatling-grpc",
-    version := "0.16.0",
+    version := "0.17.0",
     inConfig(Test)(sbtprotoc.ProtocPlugin.protobufConfigSettings),
     Test / PB.targets := Seq(
       scalapb.gen() -> (Test / sourceManaged).value,
@@ -46,7 +46,7 @@ lazy val root = (project in file("."))
       "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf",
       "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion,
       gatlingCore,
-      "com.github.phisgr" % "gatling-ext" % "0.4.0",
+      "com.github.phisgr" % "gatling-ext" % "0.5.0",
       "io.gatling.highcharts" % "gatling-charts-highcharts" % gatlingVersion % "test",
       "io.gatling" % "gatling-test-framework" % gatlingVersion % "test",
       "org.scalatest" %% "scalatest" % "3.2.12" % "test",
@@ -55,7 +55,7 @@ lazy val root = (project in file("."))
   .dependsOn(macroSub % "compile-internal")
 
 lazy val macroSub = (project in file("macro"))
-  .settings(commonSettings: _*)
+  .settings(commonSettings *)
   .settings(
     name := "macro",
     libraryDependencies ++= Seq(
@@ -70,8 +70,8 @@ lazy val macroSub = (project in file("macro"))
 val gatlingJavaPbVersion = "1.3.0"
 val gatlingJavaPbExtVersion = gatlingJavaPbVersion
 lazy val javaPb = (project in file("java-pb"))
-  .settings(commonSettings: _*)
-  .settings(publishSettings: _*)
+  .settings(commonSettings *)
+  .settings(publishSettings *)
   .settings(
     name := "gatling-javapb",
     version := gatlingJavaPbVersion,
@@ -87,8 +87,8 @@ lazy val javaPb = (project in file("java-pb"))
   .dependsOn(root % "test->test")
 
 lazy val javaPbIjExt = (project in file("java-pb-intellij"))
-  .settings(commonSettings: _*)
-  .settings(publishSettings: _*)
+  .settings(commonSettings *)
+  .settings(publishSettings *)
   .settings(
     name := "gatling-javapb-ijext",
     ThisBuild / intellijPluginName := "gatling-javapb-ijext",
@@ -101,7 +101,7 @@ lazy val javaPbIjExt = (project in file("java-pb-intellij"))
   .enablePlugins(SbtIdeaPlugin)
 
 lazy val bench = (project in file("bench"))
-  .settings(commonSettings: _*)
+  .settings(commonSettings *)
   .dependsOn(root, javaPb)
   .enablePlugins(JmhPlugin)
   .settings(

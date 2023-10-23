@@ -4,7 +4,7 @@ plugins {
     kotlin("jvm") version "1.7.10"
     id("org.jetbrains.dokka") version "1.7.10"
 
-    id("io.gatling.gradle") version "3.8.3.2"
+    id("io.gatling.gradle") version "3.9.5.6"
     id("me.champeau.jmh") version "0.6.6"
 
     id("maven-publish")
@@ -24,9 +24,9 @@ dependencies {
         gatlingImplementation(s)
     }
 
-    add("com.github.phisgr:gatling-grpc:0.15.1")
-    add("io.gatling:gatling-core-java:3.8.4")
-    add("com.github.phisgr:gatling-kt-ext:0.4.0")
+    add("com.github.phisgr:gatling-grpc:0.17.0")
+    add("io.gatling:gatling-core-java:3.9.5")
+    add("com.github.phisgr:gatling-kt-ext:0.5.0")
 
     gatlingImplementation(project(":scala-tests"))
     jmh(project(":scala-tests"))
@@ -62,7 +62,7 @@ publishing {
         create<MavenPublication>("maven") {
             groupId = "com.github.phisgr"
             artifactId = "gatling-grpc-kt"
-            version = "0.15.1"
+            version = "0.17.0"
 
             from(components["java"])
 

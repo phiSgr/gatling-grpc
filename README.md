@@ -26,7 +26,7 @@ along with the two required by Gatling.
 libraryDependencies ++= Seq(
   "io.gatling.highcharts" % "gatling-charts-highcharts" % gatlingVersion % "test",
   "io.gatling" % "gatling-test-framework" % gatlingVersion % "test",
-  "com.github.phisgr" % "gatling-grpc" % "0.16.0" % "test"
+  "com.github.phisgr" % "gatling-grpc" % "0.17.0" % "test"
 )
 enablePlugins(GatlingPlugin)
 ```

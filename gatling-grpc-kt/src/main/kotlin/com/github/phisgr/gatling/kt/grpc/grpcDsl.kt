@@ -1,6 +1,5 @@
 @file:JvmMultifileClass
 @file:JvmName("GrpcDsl")
-@file:Suppress("UNCHECKED_CAST")
 
 package com.github.phisgr.gatling.kt.grpc
 
@@ -17,6 +16,7 @@ import com.github.phisgr.gatling.kt.grpc.action.*
 import com.github.phisgr.gatling.kt.internal.ActionBuilderWrapper
 import com.github.phisgr.gatling.kt.internal.elString
 import com.github.phisgr.gatling.kt.internal.toScalaF
+import com.github.phisgr.gatling.kt.internal.validation
 import com.github.phisgr.gatling.kt.javapb.asScala
 import com.github.phisgr.gatling.kt.javapb.fromSession
 import com.google.protobuf.Message
@@ -44,21 +44,56 @@ class Grpc(@PublishedApi internal val requestName: ExpressionS<String>) {
     fun <Req, Res> rpc(method: MethodDescriptor<Req, Res>) =
         Unary(requestName, method)
 
+    // EL streamName methods
     fun <Req, Res> serverStream(method: MethodDescriptor<Req, Res>, streamName: String) =
-        ServerStream(requestName, method, streamName)
-
-    fun <Req, Res> bidiStream(method: MethodDescriptor<Req, Res>, streamName: String, clazz: Class<Req>) =
-        BidiStream(requestName, method, streamName, clazz)
-
-    fun <Req, Res> clientStream(method: MethodDescriptor<Req, Res>, streamName: String, clazz: Class<Req>) =
-        ClientStream(requestName, method, streamName, clazz)
-
+        ServerStream(requestName, method, streamName.elString)
 
     inline fun <reified Req, Res> bidiStream(method: MethodDescriptor<Req, Res>, streamName: String) =
         bidiStream(method, streamName, Req::class.java)
 
     inline fun <reified Req, Res> clientStream(method: MethodDescriptor<Req, Res>, streamName: String) =
         clientStream(method, streamName, Req::class.java)
+
+    fun <Req, Res> bidiStream(method: MethodDescriptor<Req, Res>, streamName: String, clazz: Class<Req>) =
+        BidiStream(requestName, method, streamName.elString, clazz)
+
+    fun <Req, Res> clientStream(method: MethodDescriptor<Req, Res>, streamName: String, clazz: Class<Req>) =
+        ClientStream(requestName, method, streamName.elString, clazz)
+
+
+    // Java Function streamName methods
+    fun <Req, Res> serverStream(method: MethodDescriptor<Req, Res>, streamName: Function<Session, String>) =
+        ServerStream(requestName, method, streamName.asScala())
+
+    fun <Req, Res> bidiStream(
+        method: MethodDescriptor<Req, Res>,
+        streamName: Function<Session, String>,
+        clazz: Class<Req>,
+    ) = BidiStream(requestName, method, streamName.asScala(), clazz)
+
+    fun <Req, Res> clientStream(
+        method: MethodDescriptor<Req, Res>,
+        streamName: Function<Session, String>,
+        clazz: Class<Req>,
+    ) = ClientStream(requestName, method, streamName.asScala(), clazz)
+
+
+    // Kotlin inline function streamName methods
+    @JvmSynthetic
+    inline fun <Req, Res> serverStream(
+        method: MethodDescriptor<Req, Res>,
+        crossinline streamName: (Session) -> String,
+    ) = ServerStream(requestName, method) { session -> validation { streamName(Session(session)) } }
+
+    inline fun <reified Req, Res> bidiStream(
+        method: MethodDescriptor<Req, Res>,
+        crossinline streamName: (Session) -> String,
+    ) = BidiStream(requestName, method, { session -> validation { streamName(Session(session)) } }, Req::class.java)
+
+    inline fun <reified Req, Res> clientStream(
+        method: MethodDescriptor<Req, Res>,
+        crossinline streamName: (Session) -> String,
+    ) = ClientStream(requestName, method, { session -> validation { streamName(Session(session)) } }, Req::class.java)
 }
 
 inline fun <reified Req, Res> Unary<Req, Res>.payload(el: String): GrpcCallActionBuilder<Req, Res> =
@@ -97,17 +132,20 @@ class Unary<Req, Res>(
 
 sealed class ListeningStream<Status, C : StreamCall<*, *, Status>>(private val callClazz: Class<C>) {
     abstract val requestName: ExpressionS<String>
-    abstract val streamName: String
+    abstract val streamName: ExpressionS<String>
     abstract val direction: String
     fun cancelStream(): ActionBuilder =
         ActionBuilderWrapper(StreamCancelBuilder(requestName, streamName, direction))
 
-    fun reconciliate(waitFor: WaitType = NO_WAIT): ActionBuilder =
-        ActionBuilderWrapper(StreamReconciliateBuilder(requestName, streamName, direction, waitFor))
+    /**
+     * See [com.github.phisgr.gatling.grpc.request.ListeningStream.reconciliate].
+     */
+    fun reconciliate(waitFor: WaitType = NO_WAIT, sync: Boolean = false): ActionBuilder =
+        ActionBuilderWrapper(StreamReconciliateBuilder(requestName, streamName, direction, waitFor, sync))
 
     fun status(session: Session): Status =
         `StreamMessageAction$`.`MODULE$`
-            .fetchCall<C>(streamName, session.asScala(), direction, ClassTag.apply(callClazz))
+            .fetchCall(callClazz, streamName, session.asScala(), direction)
             .getOrThrow()
             .state()
 }
@@ -127,7 +165,7 @@ inline fun <Req : Message, ReqBuilder : Message.Builder, Res> ServerStream<Req, 
 class ServerStream<Req, Res>(
     override val requestName: ExpressionS<String>,
     val method: MethodDescriptor<Req, Res>,
-    override val streamName: String,
+    override val streamName: ExpressionS<String>,
 ) : ListeningStream<StreamCall.ServerStreamState, ServerStreamCall<*, *>>(ServerStreamCall::class.java) {
     fun withRequestName(el: String): ServerStream<Req, Res> = ServerStream(
         el.elString, method, streamName
@@ -165,7 +203,7 @@ inline fun <Req : Message, ReqBuilder : Message.Builder, Res> BidiStream<Req, Re
 class BidiStream<Req, Res>(
     override val requestName: ExpressionS<String>,
     val method: MethodDescriptor<Req, Res>,
-    override val streamName: String,
+    override val streamName: ExpressionS<String>,
     private val clazz: Class<Req>,
 ) : ListeningStream<StreamCall.BidiStreamState, BidiStreamCall<*, *>>(BidiStreamCall::class.java) {
     fun withRequestName(el: String): BidiStream<Req, Res> = BidiStream(
@@ -207,7 +245,7 @@ inline fun <Req : Message, ReqBuilder : Message.Builder, Res> ClientStream<Req, 
 class ClientStream<Req, Res>(
     val requestName: ExpressionS<String>,
     val method: MethodDescriptor<Req, Res>,
-    val streamName: String,
+    val streamName: ExpressionS<String>,
     private val clazz: Class<Req>,
 ) {
     fun withRequestName(el: String): ClientStream<Req, Res> = ClientStream(
@@ -235,11 +273,11 @@ class ClientStream<Req, Res>(
 
     fun status(session: Session): StreamCall.ClientStreamState =
         `StreamMessageAction$`.`MODULE$`
-            .fetchCall<ClientStreamCall<*, *>>(
+            .fetchCall(
+                ClientStreamCall::class.java,
                 streamName,
                 session.asScala(),
                 "client",
-                ClassTag.apply(ClientStreamCall::class.java)
             )
             .getOrThrow()
             .state()

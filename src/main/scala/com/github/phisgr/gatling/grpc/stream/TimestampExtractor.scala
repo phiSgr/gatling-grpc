@@ -52,11 +52,4 @@ object TimestampExtractor {
   final val IgnoreMessage = Long.MinValue
 
   final val Ignore: TimestampExtractor[Any] = (_, _, _) => IgnoreMessage
-
-  /**
-   * Java/Kotlin API.
-   * Java and Kotlin compilers don't know that
-   * [[TimestampExtractor]] is contravariant.
-   */
-  def ignore[T]: TimestampExtractor[T] = Ignore
 }
