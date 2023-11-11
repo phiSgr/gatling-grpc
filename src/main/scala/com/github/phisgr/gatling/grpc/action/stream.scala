@@ -5,7 +5,7 @@ import com.github.phisgr.gatling.grpc.check.GrpcResponse.GrpcStreamEnd
 import com.github.phisgr.gatling.grpc.check.{StatusExtract, StreamCheck}
 import com.github.phisgr.gatling.grpc.request.{Call, CallDefinition}
 import com.github.phisgr.gatling.grpc.stream.StreamCall.StreamEndLog
-import com.github.phisgr.gatling.grpc.stream.{EventExtractor, TimestampExtractor}
+import com.github.phisgr.gatling.grpc.stream.{EventExtractor, TimestampExtractor, TimestampsExtractor}
 import io.gatling.commons.validation.Validation
 import io.gatling.core.session.{Expression, Session}
 import io.gatling.core.structure.ScenarioContext
@@ -33,6 +33,8 @@ trait StreamStartBuilder[Self, Req, Res] extends CallDefinition[Self, Req, Res] 
 
   def eventExtractor(extractor: EventExtractor[Res]): Self
   def timestampExtractor(extractor: TimestampExtractor[Res]): Self =
+    eventExtractor(extractor)
+  def timestampsExtractor(extractor: TimestampsExtractor[Res]): Self =
     eventExtractor(extractor)
   def sessionCombiner(sessionCombiner: SessionCombiner): Self
 }
