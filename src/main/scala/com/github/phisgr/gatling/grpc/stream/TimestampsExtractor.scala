@@ -16,7 +16,7 @@ trait TimestampsExtractor[-Res] extends EventExtractor[Res] {
    * @return A list of timestamps extracted from the response, or [[TimestampsExtractor.IgnoreMessage]]
    *         if the message should be ignored.
    */
-  def extractTimestamp(session: Session, message: Res, streamStartTime: Long): List[Long]
+  def extractTimestamps(session: Session, message: Res, streamStartTime: Long): List[Long]
 
   final override def writeEvents(
     session: Session,
@@ -29,7 +29,7 @@ trait TimestampsExtractor[-Res] extends EventExtractor[Res] {
     status: Status,
     errorMessage: Option[String]
   ): Unit = {
-    val extractedTimes = extractTimestamp(session, message, streamStartTime)
+    val extractedTimes = extractTimestamps(session, message, streamStartTime)
 
     if (extractedTimes == TimestampsExtractor.IgnoreMessage) {
       logger.trace(s"Ignored message\n${toProtoString(message)}")
