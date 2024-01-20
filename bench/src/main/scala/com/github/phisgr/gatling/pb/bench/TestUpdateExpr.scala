@@ -2,7 +2,6 @@ package com.github.phisgr.gatling.pb.bench
 
 import com.github.phisgr.gatling.forToMatch
 import com.github.phisgr.gatling.grpc.Predef._
-import com.github.phisgr.gatling.javapb._
 import com.github.phisgr.gatling.pb.Test
 import com.github.phisgr.gatling.pb.test._
 import io.gatling.commons.validation.Validation
@@ -26,16 +25,6 @@ class TestUpdateExpr {
   @Benchmark
   def updateComplexExpr(): Validation[ComplexMessage] = {
     ComplexExpr(Session1)
-  }
-
-  @Benchmark
-  def updateSimpleExprJava(): Validation[Test.SimpleMessage] = {
-    SimpleExprJava(Session1)
-  }
-
-  @Benchmark
-  def updateComplexExprJava(): Validation[Test.ComplexMessage] = {
-    ComplexExprJava(Session1)
   }
 
   @Benchmark
@@ -64,10 +53,6 @@ object TestUpdateExpr {
     _.s :~ $("name")
   )
 
-  private val SimpleExprJava: Expression[Test.SimpleMessage] =
-    Test.SimpleMessage.getDefaultInstance
-      .update(_.setS)($("name"))
-
   private val SimpleExprFor: Expression[Test.SimpleMessage] = { s: Session =>
     for {
       name <- s("name").validate[String]
@@ -94,11 +79,6 @@ object TestUpdateExpr {
     _.m.s :~ $("name"),
     _.i :~ $("count")
   )
-
-  private val ComplexExprJava: Expression[Test.ComplexMessage] =
-    Test.ComplexMessage.getDefaultInstance
-      .update(_.getMBuilder.setS)($("name"))
-      .update(_.setI)($("count"))
 
   private val ComplexExprFor: Expression[Test.ComplexMessage] = { s: Session =>
     for {

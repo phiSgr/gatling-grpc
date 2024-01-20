@@ -66,43 +66,9 @@ lazy val macroSub = (project in file("macro"))
     ),
   )
 
-// Usually the two update together (for specifying IntelliJ compatibility)
-val gatlingJavaPbVersion = "1.3.0"
-val gatlingJavaPbExtVersion = gatlingJavaPbVersion
-lazy val javaPb = (project in file("java-pb"))
-  .settings(commonSettings *)
-  .settings(publishSettings *)
-  .settings(
-    name := "gatling-javapb",
-    version := gatlingJavaPbVersion,
-    libraryDependencies ++= Seq(
-      "com.google.protobuf" % "protobuf-java" % "3.21.6",
-      gatlingCore,
-    ),
-    scalacOptions ++= Seq(
-      "-language:implicitConversions",
-      "-language:experimental.macros",
-    ),
-  )
-  .dependsOn(root % "test->test")
-
-lazy val javaPbIjExt = (project in file("java-pb-intellij"))
-  .settings(commonSettings *)
-  .settings(publishSettings *)
-  .settings(
-    name := "gatling-javapb-ijext",
-    ThisBuild / intellijPluginName := "gatling-javapb-ijext",
-    // https://www.jetbrains.com/idea/download/other.html
-    ThisBuild / intellijBuild := "222.4167.29",
-    version := gatlingJavaPbExtVersion,
-    // https://plugins.jetbrains.com/plugin/1347-scala/versions/stable
-    intellijPlugins += "org.intellij.scala:2022.2.13".toPlugin,
-  )
-  .enablePlugins(SbtIdeaPlugin)
-
 lazy val bench = (project in file("bench"))
   .settings(commonSettings *)
-  .dependsOn(root, javaPb)
+  .dependsOn(root)
   .enablePlugins(JmhPlugin)
   .settings(
     Compile / PB.targets := Seq(
