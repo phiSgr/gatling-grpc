@@ -1,6 +1,11 @@
 # Gatling-gRPC
 
-A [Gatling](http://gatling.io/) load test plugin for [gRPC](https://grpc.io/).
+A [Gatling](http://gatling.io/) load test community plugin for [gRPC](https://grpc.io/).
+
+[Since Gatling 3.10](https://gatling.io/2024/01/gatling-introduces-a-grpc-plugin-for-load-testing/),
+Gatling Corp has released [their plugin for gRPC](https://gatling.io/docs/gatling/reference/current/grpc/).
+
+# This plugin will no longer be updated. Feel free to fork and maintain it if you want (to provide) up-to-date free stuff.
 
 ### Java/Kotlin API
 
